@@ -1,10 +1,31 @@
 import { NextResponse } from 'next/server';
+import { MongoClient } from 'mongodb';
 import { fileStorage } from '@/lib/fileStorage';
 import { supabaseDb } from '@/lib/supabase';
 import { redisDb } from '@/lib/redis';
-import { mongodbDb } from '@/lib/mongodb';
+import { getStorageConfig } from '@/lib/storageConfig';
 
-// 获取存储模式（从请求头或环境变量）
+const MONGODB_DB_NAME = 'markdown_notes';
+
+const formatError = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object') {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+  return String(error ?? 'Unknown error');
+};
+
+const getMongoClient = async () => {
+  const config = getStorageConfig();
+  const client = new MongoClient(config.mongodbUri);
+  await client.connect();
+  return client;
+};
+
 const getStorageMode = (request: Request): 'local' | 'supabase' | 'redis' | 'mongodb' => {
   const mode = request.headers.get('x-storage-mode');
   if (mode === 'supabase') return 'supabase';
@@ -24,15 +45,21 @@ export async function GET(request: Request) {
       const notes = await redisDb.getNotes();
       return NextResponse.json(notes);
     } else if (mode === 'mongodb') {
-      const notes = await mongodbDb.getNotes();
-      return NextResponse.json(notes);
+      const client = await getMongoClient();
+      try {
+        const notes = await client.db(MONGODB_DB_NAME).collection('notes').find({}).sort({ updatedAt: -1 }).toArray();
+        return NextResponse.json(notes);
+      } finally {
+        await client.close();
+      }
     } else {
       fileStorage.init();
       const notes = fileStorage.getNotes();
       return NextResponse.json(notes);
     }
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch notes' }, { status: 500 });
+    console.error('API GET /notes error:', error);
+    return NextResponse.json({ error: 'Failed to fetch notes', details: formatError(error) }, { status: 500 });
   }
 }
 
@@ -59,8 +86,13 @@ export async function POST(request: Request) {
       const created = await redisDb.createNote(newNote);
       return NextResponse.json(created);
     } else if (mode === 'mongodb') {
-      const created = await mongodbDb.createNote(newNote);
-      return NextResponse.json(created);
+      const client = await getMongoClient();
+      try {
+        const result = await client.db(MONGODB_DB_NAME).collection('notes').insertOne(newNote);
+        return NextResponse.json({ ...newNote, _id: result.insertedId });
+      } finally {
+        await client.close();
+      }
     } else {
       fileStorage.init();
       const notes = fileStorage.getNotes();
@@ -69,6 +101,7 @@ export async function POST(request: Request) {
       return NextResponse.json(newNote);
     }
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to create note' }, { status: 500 });
+    console.error('API POST /notes error:', error);
+    return NextResponse.json({ error: 'Failed to create note', details: formatError(error) }, { status: 500 });
   }
 }

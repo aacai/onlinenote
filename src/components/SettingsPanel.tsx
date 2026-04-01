@@ -89,11 +89,20 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const [activeProvider, setActiveProvider] = useState<'supabase' | 'redis' | 'mongodb' | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const logsContainerRef = useRef<HTMLDivElement>(null);
+  const userScrolledUpRef = useRef(false);
 
-  // 滚动到日志底部
   const scrollToBottom = () => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = logsContainerRef.current;
+    if (!container) return;
+    container.scrollTop = container.scrollHeight;
   };
+
+  const handleLogsScroll = useCallback(() => {
+    const container = logsContainerRef.current;
+    if (!container) return;
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    userScrolledUpRef.current = distanceFromBottom > 100;
+  }, []);
 
   // 更新日志
   const updateLogs = useCallback(() => {
@@ -122,9 +131,9 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     };
   }, [showLogs, activeProvider, updateLogs]);
 
-  // 日志更新时自动滚动
+  // 日志更新时自动滚动（仅当用户在底部附近时）
   useEffect(() => {
-    if (showLogs && logs.length > 0) {
+    if (showLogs && logs.length > 0 && !userScrolledUpRef.current) {
       scrollToBottom();
     }
   }, [logs, showLogs]);
@@ -266,8 +275,14 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           {/* Content */}
           <div className="p-6 space-y-6 overflow-y-auto">
             {/* 存储模式选择 */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">选择存储方式</h3>
+            <div className="space-y-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 p-5 border border-blue-100 dark:border-blue-900/40">
+              <div className="flex items-center gap-2.5 mb-1">
+                <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center">
+                  <Database size={16} className="text-white" />
+                </div>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100">选择存储方式</h3>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 ml-10 -mt-1">当前：<span className={`font-medium ${selectedMode === 'local' ? 'text-gray-700 dark:text-gray-300' : 'text-blue-600 dark:text-blue-400'}`}>{selectedMode === 'local' ? '📁 本地存储' : selectedMode === 'supabase' ? '🐘 Supabase' : selectedMode === 'redis' ? '⚡ Redis' : '🍃 MongoDB'}</span></p>
 
               {/* 本地存储选项 */}
               <button
@@ -533,6 +548,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 {/* 日志内容 */}
                 <div
                   ref={logsContainerRef}
+                  onScroll={handleLogsScroll}
                   className="max-h-64 overflow-y-auto p-2 space-y-1 bg-gray-900 font-mono text-xs"
                 >
                   {logs.length === 0 ? (

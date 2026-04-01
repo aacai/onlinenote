@@ -201,10 +201,16 @@ export const syncFromCloud = async (): Promise<SyncResult> => {
       }
     }
 
-    // 保存合并后的数据
+    // 保存合并后的数据（去重）
+    const uniqueNotes = mergedNotes.filter((note, index, self) =>
+      index === self.findIndex(n => n.id === note.id)
+    );
+    const uniqueCategories = (remoteCategories.length > 0 ? remoteCategories : localData.categories).filter(
+      (cat, index, self) => index === self.findIndex(c => c.id === cat.id)
+    );
     importLocalData({
-      notes: mergedNotes,
-      categories: remoteCategories.length > 0 ? remoteCategories : localData.categories,
+      notes: uniqueNotes,
+      categories: uniqueCategories,
     });
 
     // 更新同步时间

@@ -94,29 +94,46 @@ const parseMarkdownToBlocks = (markdown: string) => {
   return blocks.length > 0 ? blocks : [{ type: 'paragraph', content: '' }];
 };
 
+const extractText = (content: unknown): string => {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((item: unknown) => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object' && 'text' in item) return (item as { text: string }).text;
+        return '';
+      })
+      .join('');
+  }
+  return '';
+};
+
 // 将 BlockNote 内容转换为 Markdown
-const blocksToMarkdown = (blocks: Array<{ type: string; content?: string; props?: Record<string, unknown> }>): string => {
+const blocksToMarkdown = (blocks: Array<{ type: string; content?: unknown; props?: Record<string, unknown> }>): string => {
   return blocks
     .map((block) => {
+      const text = extractText(block.content);
       switch (block.type) {
-        case 'heading':
+        case 'heading': {
           const level = (block.props?.level as number) || 1;
-          return `${'#'.repeat(level)} ${block.content || ''}`;
+          return `${'#'.repeat(level)} ${text}`;
+        }
         case 'bulletListItem':
-          return `- ${block.content || ''}`;
+          return `- ${text}`;
         case 'numberedListItem':
-          return `1. ${block.content || ''}`;
+          return `1. ${text}`;
         case 'quote':
-          return `> ${block.content || ''}`;
-        case 'image':
+          return `> ${text}`;
+        case 'image': {
           const url = (block.props?.url as string) || '';
           const caption = (block.props?.caption as string) || '';
           return `![${caption}](${url})`;
+        }
         case 'codeBlock':
-          return `\`\`\`\n${block.content || ''}\n\`\`\``;
+          return `\`\`\`\n${text}\n\`\`\``;
         case 'paragraph':
         default:
-          return block.content || '';
+          return text;
       }
     })
     .join('\n');

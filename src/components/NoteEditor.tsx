@@ -379,6 +379,11 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
             onChange={handleContentChange}
           />
         </div>
+        <div className="px-4 py-1.5 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            支持 <a href="https://markdownguide.org/basic-syntax/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Markdown 语法</a> · 输入 <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300 font-mono text-[10px]">/</kbd> 打开命令菜单
+          </p>
+        </div>
       </div>
 
       <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-shrink-0">

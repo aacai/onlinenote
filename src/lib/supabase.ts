@@ -97,14 +97,32 @@ export const supabaseDb = {
   getNotes: async (): Promise<Note[]> => {
     addConnectionLog('info', '获取笔记列表...');
     const supabase = createSupabaseClient();
-    const { data, error } = await supabase
+    
+    let { data, error } = await supabase
       .from('notes')
       .select('*')
       .order('updatedAt', { ascending: false });
+
+    if (error && error.message?.includes('does not exist')) {
+      addConnectionLog('warn', 'updatedAt 列不存在，改用 createdAt 排序');
+      const fallback = await supabase
+        .from('notes')
+        .select('*')
+        .order('createdAt', { ascending: false });
+      data = fallback.data;
+      error = fallback.error;
+
+      if (error && error.message?.includes('does not exist')) {
+        addConnectionLog('warn', 'createdAt 列也不存在，不排序直接查询');
+        const noOrder = await supabase.from('notes').select('*');
+        data = noOrder.data;
+        error = noOrder.error;
+      }
+    }
     
     if (error) {
       addConnectionLog('error', '获取笔记失败', error.message);
-      throw error;
+      throw new Error(error.message);
     }
     
     addConnectionLog('success', `获取到 ${data?.length || 0} 条笔记`);
@@ -115,15 +133,23 @@ export const supabaseDb = {
   createNote: async (note: Note): Promise<Note> => {
     addConnectionLog('info', '创建笔记...', `ID: ${note.id}`);
     const supabase = createSupabaseClient();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('notes')
       .insert(note)
       .select()
       .single();
     
+    if (error && error.message?.includes('does not exist')) {
+      addConnectionLog('warn', '部分列不存在，移除时间字段后重试');
+      const { createdAt: _c, updatedAt: _u, ...safeNote } = note;
+      const fallback = await supabase.from('notes').insert(safeNote).select().single();
+      data = fallback.data;
+      error = fallback.error;
+    }
+    
     if (error) {
       addConnectionLog('error', '创建笔记失败', error.message);
-      throw error;
+      throw new Error(error.message);
     }
     
     addConnectionLog('success', '笔记创建成功');
@@ -134,16 +160,31 @@ export const supabaseDb = {
   updateNote: async (id: string, updates: Partial<Note>): Promise<Note> => {
     addConnectionLog('info', '更新笔记...', `ID: ${id}`);
     const supabase = createSupabaseClient();
-    const { data, error } = await supabase
+    
+    const updateData = { ...updates, updatedAt: Date.now() };
+    let { data, error } = await supabase
       .from('notes')
-      .update({ ...updates, updatedAt: Date.now() })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
     
+    if (error && error.message?.includes('does not exist')) {
+      addConnectionLog('warn', '时间列不存在，移除后重试');
+      const { createdAt: _c, updatedAt: _u, ...safeUpdates } = updateData;
+      const fallback = await supabase
+        .from('notes')
+        .update(safeUpdates)
+        .eq('id', id)
+        .select()
+        .single();
+      data = fallback.data;
+      error = fallback.error;
+    }
+    
     if (error) {
       addConnectionLog('error', '更新笔记失败', error.message);
-      throw error;
+      throw new Error(error.message);
     }
     
     addConnectionLog('success', '笔记更新成功');
@@ -161,7 +202,7 @@ export const supabaseDb = {
     
     if (error) {
       addConnectionLog('error', '删除笔记失败', error.message);
-      throw error;
+      throw new Error(error.message);
     }
     
     addConnectionLog('success', '笔记删除成功');
@@ -178,7 +219,7 @@ export const supabaseDb = {
     
     if (error) {
       addConnectionLog('error', '获取分类失败', error.message);
-      throw error;
+      throw new Error(error.message);
     }
     
     addConnectionLog('success', `获取到 ${data?.length || 0} 个分类`);
@@ -197,7 +238,7 @@ export const supabaseDb = {
     
     if (error) {
       addConnectionLog('error', '创建分类失败', error.message);
-      throw error;
+      throw new Error(error.message);
     }
     
     addConnectionLog('success', '分类创建成功');
@@ -215,7 +256,7 @@ export const supabaseDb = {
     
     if (error) {
       addConnectionLog('error', '删除分类失败', error.message);
-      throw error;
+      throw new Error(error.message);
     }
     
     addConnectionLog('success', '分类删除成功');

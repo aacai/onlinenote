@@ -1,10 +1,19 @@
 import { NextResponse } from 'next/server';
+import { MongoClient } from 'mongodb';
 import { fileStorage } from '@/lib/fileStorage';
 import { supabaseDb } from '@/lib/supabase';
 import { redisDb } from '@/lib/redis';
-import { mongodbDb } from '@/lib/mongodb';
+import { getStorageConfig } from '@/lib/storageConfig';
 
-// 获取存储模式
+const MONGODB_DB_NAME = 'markdown_notes';
+
+const getMongoClient = async () => {
+  const config = getStorageConfig();
+  const client = new MongoClient(config.mongodbUri);
+  await client.connect();
+  return client;
+};
+
 const getStorageMode = (request: Request): 'local' | 'supabase' | 'redis' | 'mongodb' => {
   const mode = request.headers.get('x-storage-mode');
   if (mode === 'supabase') return 'supabase';
@@ -37,12 +46,16 @@ export async function GET(
       }
       return NextResponse.json(note);
     } else if (mode === 'mongodb') {
-      const notes = await mongodbDb.getNotes();
-      const note = notes.find((n: { id: string }) => n.id === id);
-      if (!note) {
-        return NextResponse.json({ error: 'Note not found' }, { status: 404 });
+      const client = await getMongoClient();
+      try {
+        const note = await client.db(MONGODB_DB_NAME).collection('notes').findOne({ id });
+        if (!note) {
+          return NextResponse.json({ error: 'Note not found' }, { status: 404 });
+        }
+        return NextResponse.json(note);
+      } finally {
+        await client.close();
       }
-      return NextResponse.json(note);
     } else {
       fileStorage.init();
       const notes = fileStorage.getNotes();
@@ -74,8 +87,17 @@ export async function PUT(
       const updated = await redisDb.updateNote(id, updates);
       return NextResponse.json(updated);
     } else if (mode === 'mongodb') {
-      const updated = await mongodbDb.updateNote(id, updates);
-      return NextResponse.json(updated);
+      const client = await getMongoClient();
+      try {
+        const result = await client.db(MONGODB_DB_NAME).collection('notes').findOneAndUpdate(
+          { id },
+          { $set: { ...updates, updatedAt: Date.now() } },
+          { returnDocument: 'after' }
+        );
+        return NextResponse.json(result);
+      } finally {
+        await client.close();
+      }
     } else {
       fileStorage.init();
       const notes = fileStorage.getNotes();
@@ -114,9 +136,14 @@ export async function DELETE(
       fileStorage.deleteNoteAttachments(id);
       return NextResponse.json({ success: true });
     } else if (mode === 'mongodb') {
-      await mongodbDb.deleteNote(id);
-      fileStorage.deleteNoteAttachments(id);
-      return NextResponse.json({ success: true });
+      const client = await getMongoClient();
+      try {
+        await client.db(MONGODB_DB_NAME).collection('notes').deleteOne({ id });
+        fileStorage.deleteNoteAttachments(id);
+        return NextResponse.json({ success: true });
+      } finally {
+        await client.close();
+      }
     } else {
       fileStorage.init();
       const notes = fileStorage.getNotes();

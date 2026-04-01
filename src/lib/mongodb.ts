@@ -1,6 +1,13 @@
 import { Note, Category } from '@/types/note';
 import { getStorageConfig } from './storageConfig';
 
+const getApiBaseUrl = (): string => {
+  if (typeof window === 'undefined') {
+    return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  }
+  return '';
+};
+
 // 日志类型
 export interface MongoDBLog {
   timestamp: number;
@@ -83,7 +90,7 @@ export const mongodbDb = {
   getNotes: async (): Promise<Note[]> => {
     addMongoDBLog('info', '获取笔记列表...');
 
-    const response = await fetch('/api/notes', {
+    const response = await fetch(`${getApiBaseUrl()}/api/notes`, {
       headers: {
         'x-storage-mode': 'mongodb',
       },
@@ -102,7 +109,7 @@ export const mongodbDb = {
   createNote: async (note: Note): Promise<Note> => {
     addMongoDBLog('info', '创建笔记...', `ID: ${note.id}`);
 
-    const response = await fetch('/api/notes', {
+    const response = await fetch(`${getApiBaseUrl()}/api/notes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -124,7 +131,7 @@ export const mongodbDb = {
   updateNote: async (id: string, updates: Partial<Note>): Promise<Note> => {
     addMongoDBLog('info', '更新笔记...', `ID: ${id}`);
 
-    const response = await fetch(`/api/notes/${id}`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/notes/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -146,7 +153,7 @@ export const mongodbDb = {
   deleteNote: async (id: string): Promise<void> => {
     addMongoDBLog('info', '删除笔记...', `ID: ${id}`);
 
-    const response = await fetch(`/api/notes/${id}`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/notes/${id}`, {
       method: 'DELETE',
       headers: {
         'x-storage-mode': 'mongodb',
@@ -164,7 +171,7 @@ export const mongodbDb = {
   getCategories: async (): Promise<Category[]> => {
     addMongoDBLog('info', '获取分类列表...');
 
-    const response = await fetch('/api/categories', {
+    const response = await fetch(`${getApiBaseUrl()}/api/categories`, {
       headers: {
         'x-storage-mode': 'mongodb',
       },
@@ -183,7 +190,7 @@ export const mongodbDb = {
   createCategory: async (category: Category): Promise<Category> => {
     addMongoDBLog('info', '创建分类...', `ID: ${category.id}`);
 
-    const response = await fetch('/api/categories', {
+    const response = await fetch(`${getApiBaseUrl()}/api/categories`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -205,7 +212,7 @@ export const mongodbDb = {
   deleteCategory: async (id: string): Promise<void> => {
     addMongoDBLog('info', '删除分类...', `ID: ${id}`);
 
-    const response = await fetch(`/api/categories/${id}`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/categories/${id}`, {
       method: 'DELETE',
       headers: {
         'x-storage-mode': 'mongodb',

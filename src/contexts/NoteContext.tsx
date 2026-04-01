@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useSyncExternalStore } from 'react';
 import { Note, Category } from '@/types/note';
 import { api } from '@/lib/api';
 import { v4 as uuidv4 } from 'uuid';
@@ -26,6 +26,15 @@ interface NoteContextType {
 
 const NoteContext = createContext<NoteContextType | undefined>(undefined);
 
+function deduplicateNotes<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter(item => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
 export function NoteProvider({ children }: { children: React.ReactNode }) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -33,14 +42,21 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
+  // 使用 useSyncExternalStore 检测组件是否已挂载（React 19 推荐方式）
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
   const refreshNotes = useCallback(async () => {
     try {
       const [notesData, categoriesData] = await Promise.all([
         api.getNotes(),
         api.getCategories(),
       ]);
-      setNotes(notesData);
-      setCategories(categoriesData);
+      setNotes(deduplicateNotes(notesData));
+      setCategories(deduplicateNotes(categoriesData));
     } catch (error) {
       console.error('Failed to fetch data:', error);
     }
@@ -48,6 +64,8 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
 
   // 使用 useEffect 只用于数据获取，避免直接 setState
   useEffect(() => {
+    if (!mounted) return;
+    
     let isMounted = true;
     const init = async () => {
       if (isMounted) {
@@ -56,7 +74,7 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
     };
     init();
     return () => { isMounted = false; };
-  }, [refreshNotes]);
+  }, [refreshNotes, mounted]);
 
   const createNote = useCallback(async (noteData: Partial<Note>): Promise<Note> => {
     const newNote: Note = {
@@ -85,7 +103,7 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       // API 失败时，数据已在待同步队列，下次联网时会自动同步
       console.log('Note created locally, will sync when online');
-      setNotes(prev => [newNote, ...prev]);
+      setNotes(prev => deduplicateNotes([newNote, ...prev]));
       setCurrentNote(newNote);
       return newNote;
     }

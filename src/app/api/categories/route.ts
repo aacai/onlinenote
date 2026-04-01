@@ -1,10 +1,19 @@
 import { NextResponse } from 'next/server';
+import { MongoClient } from 'mongodb';
 import { fileStorage } from '@/lib/fileStorage';
 import { supabaseDb } from '@/lib/supabase';
 import { redisDb } from '@/lib/redis';
-import { mongodbDb } from '@/lib/mongodb';
+import { getStorageConfig } from '@/lib/storageConfig';
 
-// 获取存储模式
+const MONGODB_DB_NAME = 'markdown_notes';
+
+const getMongoClient = async () => {
+  const config = getStorageConfig();
+  const client = new MongoClient(config.mongodbUri);
+  await client.connect();
+  return client;
+};
+
 const getStorageMode = (request: Request): 'local' | 'supabase' | 'redis' | 'mongodb' => {
   const mode = request.headers.get('x-storage-mode');
   if (mode === 'supabase') return 'supabase';
@@ -24,15 +33,22 @@ export async function GET(request: Request) {
       const categories = await redisDb.getCategories();
       return NextResponse.json(categories);
     } else if (mode === 'mongodb') {
-      const categories = await mongodbDb.getCategories();
-      return NextResponse.json(categories);
+      const client = await getMongoClient();
+      try {
+        const categories = await client.db(MONGODB_DB_NAME).collection('categories').find({}).sort({ name: 1 }).toArray();
+        return NextResponse.json(categories);
+      } finally {
+        await client.close();
+      }
     } else {
       fileStorage.init();
       const categories = fileStorage.getCategories();
       return NextResponse.json(categories);
     }
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 });
+    console.error('API GET /categories error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to fetch categories', details: errorMessage }, { status: 500 });
   }
 }
 
@@ -55,8 +71,13 @@ export async function POST(request: Request) {
       const created = await redisDb.createCategory(newCategory);
       return NextResponse.json(created);
     } else if (mode === 'mongodb') {
-      const created = await mongodbDb.createCategory(newCategory);
-      return NextResponse.json(created);
+      const client = await getMongoClient();
+      try {
+        const result = await client.db(MONGODB_DB_NAME).collection('categories').insertOne(newCategory);
+        return NextResponse.json({ ...newCategory, _id: result.insertedId });
+      } finally {
+        await client.close();
+      }
     } else {
       fileStorage.init();
       const categories = fileStorage.getCategories();
