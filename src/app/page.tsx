@@ -1,61 +1,109 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import NoteList from '@/components/NoteList';
 import NoteEditor from '@/components/NoteEditor';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, ArrowLeft } from 'lucide-react';
+import { useNotes } from '@/contexts/NoteContext';
 
 export default function Home() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showNoteList, setShowNoteList] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const { currentNote, selectNote } = useNotes();
+
+  useEffect(() => {
+    setMounted(true);
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // 移动端：当有当前笔记时，显示编辑器；否则显示笔记列表
+  const showEditorOnMobile = isMobile && currentNote !== null;
+  const showNoteListOnMobile = isMobile && currentNote === null;
 
   return (
     <div className="h-screen flex overflow-hidden bg-white dark:bg-gray-900">
+      {/* 遮罩层 - 只在侧边栏打开且非全屏时显示 */}
       <div
         className={`fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden ${
-          showSidebar ? 'block' : 'hidden'
+          showSidebar && !isFullscreen ? 'block' : 'hidden'
         }`}
         onClick={() => setShowSidebar(false)}
       />
 
+      {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-30 w-64 transform transition-transform duration-300 ease-in-out lg:relative lg:z-auto lg:translate-x-0 ${
-          showSidebar ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed inset-y-0 left-0 z-30 transform transition-transform duration-300 ease-in-out lg:relative lg:z-auto lg:translate-x-0 ${
+          isFullscreen ? '-translate-x-full lg:translate-x-0' : (showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0')
         }`}
       >
-        <Sidebar />
+        <Sidebar onClose={() => setShowSidebar(false)} />
       </aside>
 
+      {/* NoteList - 桌面端始终显示，移动端只在无选中笔记时显示 */}
       <div
-        className={`fixed inset-y-0 left-64 z-20 w-80 transform transition-transform duration-300 ease-in-out border-r border-gray-200 dark:border-gray-700 lg:relative lg:z-auto lg:left-0 lg:translate-x-0 ${
-          showNoteList ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        className={`fixed inset-y-0 left-0 lg:left-auto z-20 w-full lg:w-80 transform transition-transform duration-300 ease-in-out border-r border-gray-200 dark:border-gray-700 lg:relative lg:z-auto lg:translate-x-0 ${
+          isFullscreen 
+            ? '-translate-x-full lg:translate-x-0' 
+            : (isMobile 
+                ? (showNoteListOnMobile ? 'translate-x-0' : '-translate-x-full')
+                : (showNoteList ? 'translate-x-0' : '-translate-x-full lg:translate-x-0')
+              )
         }`}
       >
-        <NoteList onSelectNote={() => setShowNoteList(false)} />
+        <NoteList 
+          onSelectNote={() => isMobile && setShowNoteList(false)} 
+          onOpenSidebar={() => setShowSidebar(true)}
+        />
       </div>
 
+      {/* 主内容区 */}
       <main className="flex-1 flex flex-col h-full overflow-hidden">
-        <div className="lg:hidden flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-          <button
-            onClick={() => setShowSidebar(!showSidebar)}
-            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-          >
-            <Menu size={20} className="text-gray-700 dark:text-gray-300" />
-          </button>
-          <button
-            onClick={() => setShowNoteList(!showNoteList)}
-            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-          >
-            {showNoteList ? (
-              <X size={20} className="text-gray-700 dark:text-gray-300" />
+        {/* 移动端顶部导航 - 只在编辑页显示 */}
+        {mounted && (
+          <div className="lg:hidden flex items-center justify-between gap-2 p-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm min-h-[56px]">
+            {showEditorOnMobile ? (
+              <>
+                <button
+                  onClick={() => {
+                    selectNote(null);
+                    setShowNoteList(true);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 transition-all text-sm font-medium text-gray-700 dark:text-gray-200"
+                >
+                  <ArrowLeft size={18} />
+                  <span>笔记</span>
+                </button>
+                <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate absolute left-1/2 -translate-x-1/2 max-w-[50%]">
+                  {currentNote?.title || '编辑笔记'}
+                </span>
+                <div className="w-20" />
+              </>
             ) : (
-              <Menu size={20} className="text-gray-700 dark:text-gray-300" />
+              <div className="w-full" />
             )}
-          </button>
-        </div>
+          </div>
+        )}
 
-        <NoteEditor onClose={() => setShowNoteList(true)} />
+        {/* 编辑器 - 桌面端始终显示，移动端只在有选中笔记时显示 */}
+        <div className={`flex-1 h-full ${isMobile ? (currentNote ? 'block' : 'hidden') : 'block'}`}>
+          <NoteEditor 
+            onClose={() => {
+              setShowNoteList(true);
+              if (isMobile) {
+                selectNote(null);
+              }
+            }} 
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+          />
+        </div>
       </main>
     </div>
   );

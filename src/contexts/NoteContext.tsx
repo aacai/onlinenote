@@ -62,6 +62,10 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
       updatedAt: Date.now(),
     });
     await refreshNotes();
+    // 延迟选中新创建的笔记，确保刷新完成
+    setTimeout(() => {
+      setCurrentNote(newNote);
+    }, 50);
     return newNote;
   }, [refreshNotes]);
 
