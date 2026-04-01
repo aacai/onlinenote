@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { Note, Category } from '@/types/note';
 import { api } from '@/lib/api';
 import { v4 as uuidv4 } from 'uuid';
+import { addPendingChange, scheduleSync } from '@/lib/sync';
 
 interface NoteContextType {
   notes: Note[];
@@ -58,7 +59,7 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
   }, [refreshNotes]);
 
   const createNote = useCallback(async (noteData: Partial<Note>): Promise<Note> => {
-    const newNote = await api.createNote({
+    const newNote: Note = {
       id: uuidv4(),
       title: noteData.title || '无标题笔记',
       content: noteData.content || '',
@@ -66,28 +67,67 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
       tags: noteData.tags || [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
-    });
-    await refreshNotes();
-    // 延迟选中新创建的笔记，确保刷新完成
-    setTimeout(() => {
+    };
+    
+    // 添加到待同步队列
+    addPendingChange({ type: 'create', entity: 'note', data: newNote });
+    
+    try {
+      const created = await api.createNote(newNote);
+      await refreshNotes();
+      // 延迟选中新创建的笔记，确保刷新完成
+      setTimeout(() => {
+        setCurrentNote(created);
+      }, 50);
+      // 触发自动同步
+      scheduleSync(3000);
+      return created;
+    } catch (error) {
+      // API 失败时，数据已在待同步队列，下次联网时会自动同步
+      console.log('Note created locally, will sync when online');
+      setNotes(prev => [newNote, ...prev]);
       setCurrentNote(newNote);
-    }, 50);
-    return newNote;
+      return newNote;
+    }
   }, [refreshNotes]);
 
   const updateNote = useCallback(async (id: string, updates: Partial<Note>) => {
-    await api.updateNote(id, updates);
-    await refreshNotes();
+    const updateData = { ...updates, updatedAt: Date.now() };
+    
+    // 添加到待同步队列
+    addPendingChange({ type: 'update', entity: 'note', data: { id, ...updateData } });
+    
+    // 乐观更新本地状态
     if (currentNote?.id === id) {
-      setCurrentNote(prev => prev ? { ...prev, ...updates, updatedAt: Date.now() } : null);
+      setCurrentNote(prev => prev ? { ...prev, ...updateData } : null);
+    }
+    setNotes(prev => prev.map(n => n.id === id ? { ...n, ...updateData } : n));
+    
+    try {
+      await api.updateNote(id, updates);
+      await refreshNotes();
+      scheduleSync(3000);
+    } catch (error) {
+      console.log('Note updated locally, will sync when online');
     }
   }, [currentNote, refreshNotes]);
 
   const deleteNote = useCallback(async (id: string) => {
-    await api.deleteNote(id);
-    await refreshNotes();
+    // 添加到待同步队列
+    addPendingChange({ type: 'delete', entity: 'note', data: { id } });
+    
+    // 乐观更新本地状态
+    setNotes(prev => prev.filter(n => n.id !== id));
     if (currentNote?.id === id) {
       setCurrentNote(null);
+    }
+    
+    try {
+      await api.deleteNote(id);
+      await refreshNotes();
+      scheduleSync(3000);
+    } catch (error) {
+      console.log('Note deleted locally, will sync when online');
     }
   }, [currentNote, refreshNotes]);
 
