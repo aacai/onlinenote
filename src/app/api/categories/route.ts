@@ -2,12 +2,14 @@ import { NextResponse } from 'next/server';
 import { fileStorage } from '@/lib/fileStorage';
 import { supabaseDb } from '@/lib/supabase';
 import { redisDb } from '@/lib/redis';
+import { mongodbDb } from '@/lib/mongodb';
 
 // 获取存储模式
-const getStorageMode = (request: Request): 'local' | 'supabase' | 'redis' => {
+const getStorageMode = (request: Request): 'local' | 'supabase' | 'redis' | 'mongodb' => {
   const mode = request.headers.get('x-storage-mode');
   if (mode === 'supabase') return 'supabase';
   if (mode === 'redis') return 'redis';
+  if (mode === 'mongodb') return 'mongodb';
   return 'local';
 };
 
@@ -20,6 +22,9 @@ export async function GET(request: Request) {
       return NextResponse.json(categories);
     } else if (mode === 'redis') {
       const categories = await redisDb.getCategories();
+      return NextResponse.json(categories);
+    } else if (mode === 'mongodb') {
+      const categories = await mongodbDb.getCategories();
       return NextResponse.json(categories);
     } else {
       fileStorage.init();
@@ -48,6 +53,9 @@ export async function POST(request: Request) {
       return NextResponse.json(created);
     } else if (mode === 'redis') {
       const created = await redisDb.createCategory(newCategory);
+      return NextResponse.json(created);
+    } else if (mode === 'mongodb') {
+      const created = await mongodbDb.createCategory(newCategory);
       return NextResponse.json(created);
     } else {
       fileStorage.init();

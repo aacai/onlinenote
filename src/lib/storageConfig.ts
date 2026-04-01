@@ -1,10 +1,11 @@
 // 存储配置管理
-// 支持三种模式：
+// 支持四种模式：
 // 1. local - 全部存储在本地（localStorage + 文件系统）
 // 2. supabase - 文本存储在 Supabase 数据库，附件存储在本地
 // 3. redis - 文本存储在 Upstash Redis，附件存储在本地
+// 4. mongodb - 文本存储在 MongoDB，附件存储在本地
 
-export type StorageMode = 'local' | 'supabase' | 'redis';
+export type StorageMode = 'local' | 'supabase' | 'redis' | 'mongodb';
 
 export interface StorageConfig {
   mode: StorageMode;
@@ -12,6 +13,7 @@ export interface StorageConfig {
   supabaseAnonKey: string;
   redisUrl: string;
   redisToken: string;
+  mongodbUri: string;
 }
 
 const STORAGE_CONFIG_KEY = 'markdown_notes_storage_config';
@@ -23,6 +25,7 @@ const defaultConfig: StorageConfig = {
   supabaseAnonKey: 'sb_publishable_U6JkwLk77F5B3NMItf0E0Q_YUbiTwYe',
   redisUrl: 'https://vocal-spaniel-74996.upstash.io',
   redisToken: 'gQAAAAAAAST0AAIncDE2ZGRiYTUxZTAyNWE0ZWZiODdjMGUxZWRmOThjMGUzYXAxNzQ5OTY',
+  mongodbUri: 'mongodb+srv://caicaidarenya_db_user:4CpyKH7Y3SyYWQdm@onlinewebnote.2lbnlst.mongodb.net/markdown_notes?retryWrites=true&w=majority&appName=OnlineWebNote',
 };
 
 // 获取存储配置
@@ -64,5 +67,5 @@ export const getStorageMode = (): StorageMode => {
 // 是否使用数据库
 export const isUsingDatabase = (): boolean => {
   const mode = getStorageMode();
-  return mode === 'supabase' || mode === 'redis';
+  return mode === 'supabase' || mode === 'redis' || mode === 'mongodb';
 };

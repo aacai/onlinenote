@@ -2,12 +2,14 @@ import { NextResponse } from 'next/server';
 import { fileStorage } from '@/lib/fileStorage';
 import { supabaseDb } from '@/lib/supabase';
 import { redisDb } from '@/lib/redis';
+import { mongodbDb } from '@/lib/mongodb';
 
 // 获取存储模式
-const getStorageMode = (request: Request): 'local' | 'supabase' | 'redis' => {
+const getStorageMode = (request: Request): 'local' | 'supabase' | 'redis' | 'mongodb' => {
   const mode = request.headers.get('x-storage-mode');
   if (mode === 'supabase') return 'supabase';
   if (mode === 'redis') return 'redis';
+  if (mode === 'mongodb') return 'mongodb';
   return 'local';
 };
 
@@ -29,6 +31,13 @@ export async function GET(
       return NextResponse.json(note);
     } else if (mode === 'redis') {
       const notes = await redisDb.getNotes();
+      const note = notes.find((n: { id: string }) => n.id === id);
+      if (!note) {
+        return NextResponse.json({ error: 'Note not found' }, { status: 404 });
+      }
+      return NextResponse.json(note);
+    } else if (mode === 'mongodb') {
+      const notes = await mongodbDb.getNotes();
       const note = notes.find((n: { id: string }) => n.id === id);
       if (!note) {
         return NextResponse.json({ error: 'Note not found' }, { status: 404 });
@@ -63,6 +72,9 @@ export async function PUT(
       return NextResponse.json(updated);
     } else if (mode === 'redis') {
       const updated = await redisDb.updateNote(id, updates);
+      return NextResponse.json(updated);
+    } else if (mode === 'mongodb') {
+      const updated = await mongodbDb.updateNote(id, updates);
       return NextResponse.json(updated);
     } else {
       fileStorage.init();
@@ -99,6 +111,10 @@ export async function DELETE(
       return NextResponse.json({ success: true });
     } else if (mode === 'redis') {
       await redisDb.deleteNote(id);
+      fileStorage.deleteNoteAttachments(id);
+      return NextResponse.json({ success: true });
+    } else if (mode === 'mongodb') {
+      await mongodbDb.deleteNote(id);
       fileStorage.deleteNoteAttachments(id);
       return NextResponse.json({ success: true });
     } else {

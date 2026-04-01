@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useCallback, useSyncExternalStore, useEffect, useRef } from 'react';
-import { X, Database, HardDrive, Check, AlertCircle, RefreshCw, Terminal, Copy, Trash2, Server } from 'lucide-react';
+import { X, Database, HardDrive, Check, AlertCircle, RefreshCw, Terminal, Copy, Trash2, Server, Leaf } from 'lucide-react';
 import { setStorageMode, getStorageMode, StorageMode } from '@/lib/storageConfig';
 import { checkSupabaseConnection, getConnectionLogs, clearConnectionLogs, ConnectionLog } from '@/lib/supabase';
 import { checkRedisConnection, getRedisLogs, clearRedisLogs, RedisLog } from '@/lib/redis';
+import { checkMongoDBConnection, getMongoDBLogs, clearMongoDBLogs, MongoDBLog } from '@/lib/mongodb';
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -40,7 +41,7 @@ const formatTime = (timestamp: number): string => {
 };
 
 // 获取日志级别颜色
-const getLogLevelColor = (level: ConnectionLog['level'] | RedisLog['level']): string => {
+const getLogLevelColor = (level: ConnectionLog['level'] | RedisLog['level'] | MongoDBLog['level']): string => {
   switch (level) {
     case 'info':
       return 'text-blue-600 dark:text-blue-400';
@@ -56,7 +57,7 @@ const getLogLevelColor = (level: ConnectionLog['level'] | RedisLog['level']): st
 };
 
 // 获取日志级别背景色
-const getLogLevelBgColor = (level: ConnectionLog['level'] | RedisLog['level']): string => {
+const getLogLevelBgColor = (level: ConnectionLog['level'] | RedisLog['level'] | MongoDBLog['level']): string => {
   switch (level) {
     case 'info':
       return 'bg-blue-100 dark:bg-blue-900/30';
@@ -82,10 +83,10 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const [connectionStatus, setConnectionStatus] = useState<boolean | null>(null);
   const [showRestartHint, setShowRestartHint] = useState(false);
   const [selectedMode, setSelectedMode] = useState<StorageMode>(currentMode);
-  const [logs, setLogs] = useState<(ConnectionLog | RedisLog)[]>([]);
+  const [logs, setLogs] = useState<(ConnectionLog | RedisLog | MongoDBLog)[]>([]);
   const [showLogs, setShowLogs] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [activeProvider, setActiveProvider] = useState<'supabase' | 'redis' | null>(null);
+  const [activeProvider, setActiveProvider] = useState<'supabase' | 'redis' | 'mongodb' | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const logsContainerRef = useRef<HTMLDivElement>(null);
 
@@ -100,6 +101,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       setLogs(getConnectionLogs());
     } else if (activeProvider === 'redis') {
       setLogs(getRedisLogs());
+    } else if (activeProvider === 'mongodb') {
+      setLogs(getMongoDBLogs());
     }
   }, [activeProvider]);
 
@@ -159,6 +162,17 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       if (!isConnected) {
         return;
       }
+    } else if (mode === 'mongodb') {
+      setIsChecking(true);
+      setActiveProvider('mongodb');
+      const isConnected = await checkMongoDBConnection();
+      setIsChecking(false);
+      setConnectionStatus(isConnected);
+      updateLogs();
+
+      if (!isConnected) {
+        return;
+      }
     }
 
     setSelectedMode(mode);
@@ -170,7 +184,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     window.location.reload();
   };
 
-  const handleTestConnection = async (provider: 'supabase' | 'redis') => {
+  const handleTestConnection = async (provider: 'supabase' | 'redis' | 'mongodb') => {
     setIsChecking(true);
     setShowLogs(true);
     setActiveProvider(provider);
@@ -179,8 +193,12 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       const isConnected = await checkSupabaseConnection();
       setIsChecking(false);
       setConnectionStatus(isConnected);
-    } else {
+    } else if (provider === 'redis') {
       const isConnected = await checkRedisConnection();
+      setIsChecking(false);
+      setConnectionStatus(isConnected);
+    } else if (provider === 'mongodb') {
+      const isConnected = await checkMongoDBConnection();
       setIsChecking(false);
       setConnectionStatus(isConnected);
     }
@@ -207,6 +225,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       clearConnectionLogs();
     } else if (activeProvider === 'redis') {
       clearRedisLogs();
+    } else if (activeProvider === 'mongodb') {
+      clearMongoDBLogs();
     }
     updateLogs();
   };
@@ -395,6 +415,61 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </button>
                 </div>
               </div>
+
+              {/* MongoDB 选项 */}
+              <div className={`rounded-xl border-2 transition-all duration-200 ${
+                selectedMode === 'mongodb'
+                  ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20'
+                  : 'border-gray-200 dark:border-gray-700'
+              }`}>
+                <button
+                  onClick={() => handleModeChange('mongodb')}
+                  className="w-full flex items-start gap-4 p-4 text-left"
+                >
+                  <div className={`p-3 rounded-lg ${
+                    selectedMode === 'mongodb'
+                      ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                  }`}>
+                    <Leaf size={24} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900 dark:text-white">MongoDB 存储</span>
+                      {selectedMode === 'mongodb' && (
+                        <Check size={16} className="text-blue-500" />
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      笔记和分类存储在 MongoDB 文档数据库
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <span className="text-xs px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded">
+                        笔记 → MongoDB
+                      </span>
+                      <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
+                        附件 → 本地文件
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
+                {/* 测试连接按钮 */}
+                <div className="px-4 pb-4">
+                  <button
+                    onClick={() => handleTestConnection('mongodb')}
+                    disabled={isChecking && activeProvider === 'mongodb'}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-sm font-medium rounded-lg transition-colors"
+                  >
+                    {isChecking && activeProvider === 'mongodb' ? (
+                      <RefreshCw size={16} className="animate-spin" />
+                    ) : (
+                      <Terminal size={16} />
+                    )}
+                    {isChecking && activeProvider === 'mongodb' ? '测试连接中...' : '测试 MongoDB 连接'}
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* 连接状态 */}
@@ -415,8 +490,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     : 'text-red-700 dark:text-red-400'
                 }`}>
                   {connectionStatus
-                    ? `${activeProvider === 'supabase' ? 'Supabase' : 'Redis'} 连接成功！`
-                    : `无法连接到 ${activeProvider === 'supabase' ? 'Supabase' : 'Redis'}，请查看下方日志了解详情`}
+                    ? `${activeProvider === 'supabase' ? 'Supabase' : activeProvider === 'redis' ? 'Redis' : 'MongoDB'} 连接成功！`
+                    : `无法连接到 ${activeProvider === 'supabase' ? 'Supabase' : activeProvider === 'redis' ? 'Redis' : 'MongoDB'}，请查看下方日志了解详情`}
                 </div>
               </div>
             )}
@@ -429,7 +504,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   <div className="flex items-center gap-2">
                     <Terminal size={16} className="text-gray-500 dark:text-gray-400" />
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {activeProvider === 'supabase' ? 'Supabase' : 'Redis'} 连接日志
+                      {activeProvider === 'supabase' ? 'Supabase' : activeProvider === 'redis' ? 'Redis' : 'MongoDB'} 连接日志
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400">({logs.length} 条)</span>
                   </div>
@@ -515,7 +590,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">存储模式</span>
                   <span className="font-medium text-gray-900 dark:text-white">
-                    {selectedMode === 'local' ? '本地存储' : selectedMode === 'supabase' ? 'Supabase' : 'Upstash Redis'}
+                    {selectedMode === 'local' ? '本地存储' : selectedMode === 'supabase' ? 'Supabase' : selectedMode === 'redis' ? 'Upstash Redis' : 'MongoDB'}
                   </span>
                 </div>
                 {selectedMode === 'supabase' && (
@@ -531,6 +606,14 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     <span className="text-gray-600 dark:text-gray-400">Redis 地址</span>
                     <span className="font-mono text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
                       vocal-spaniel-74996.upstash.io
+                    </span>
+                  </div>
+                )}
+                {selectedMode === 'mongodb' && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">MongoDB 用户</span>
+                    <span className="font-mono text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
+                      caicaidarenya_db_user
                     </span>
                   </div>
                 )}
