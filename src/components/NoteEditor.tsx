@@ -7,8 +7,8 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Save, Trash2, X, Upload, Download, Paperclip, Check, Maximize2, Minimize2, ChevronUp, ChevronDown } from 'lucide-react';
 import { api } from '@/lib/api';
 
-const MDEditor = dynamic(
-  () => import('@uiw/react-md-editor').then((mod) => mod.default),
+const BlockNoteEditor = dynamic(
+  () => import('./BlockNoteEditor').then((mod) => mod.default),
   { ssr: false }
 );
 
@@ -220,8 +220,8 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
     setHasChanges(true);
   };
 
-  const handleContentChange = (value: string | undefined) => {
-    setContent(value || '');
+  const handleContentChange = (value: string) => {
+    setContent(value);
     setHasChanges(true);
   };
 
@@ -372,16 +372,11 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col" data-color-mode={theme}>
+      <div className="flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0">
-          <MDEditor
-            value={content}
+          <BlockNoteEditor
+            content={content}
             onChange={handleContentChange}
-            height="100%"
-            preview="live"
-            hideToolbar={false}
-            enableScroll={true}
-            visibleDragbar={false}
           />
         </div>
       </div>
