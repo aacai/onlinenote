@@ -28,14 +28,21 @@ export default function NoteList({ onSelectNote }: NoteListProps) {
   });
 
   const handleCreateNote = async () => {
-    const newNote = await createNote({
-      title: '新笔记',
-      content: '',
-      category: selectedCategory || '4',
-    });
-    selectNote(newNote.id);
-    if (onSelectNote) {
-      onSelectNote();
+    try {
+      console.log('Creating note...');
+      const newNote = await createNote({
+        title: '新笔记',
+        content: '',
+        category: selectedCategory || '4',
+      });
+      console.log('Note created:', newNote);
+      selectNote(newNote.id);
+      if (onSelectNote) {
+        onSelectNote();
+      }
+    } catch (error) {
+      console.error('Failed to create note:', error);
+      alert('创建笔记失败：' + (error as Error).message);
     }
   };
 
@@ -86,10 +93,10 @@ export default function NoteList({ onSelectNote }: NoteListProps) {
           />
           <button
             onClick={handleCreateNote}
-            className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 active:bg-blue-700 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center touch-manipulation"
             title="新建笔记"
           >
-            <Plus size={20} />
+            <Plus size={24} />
           </button>
         </div>
       </div>
@@ -101,7 +108,7 @@ export default function NoteList({ onSelectNote }: NoteListProps) {
             <p>暂无笔记</p>
             <button
               onClick={handleCreateNote}
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              className="mt-4 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 active:bg-blue-700 transition-colors min-h-[48px] touch-manipulation"
             >
               创建第一篇笔记
             </button>
@@ -112,7 +119,7 @@ export default function NoteList({ onSelectNote }: NoteListProps) {
               <button
                 key={note.id}
                 onClick={() => handleSelectNote(note.id)}
-                className={`w-full text-left p-4 rounded-lg transition-all ${
+                className={`w-full text-left p-4 rounded-lg transition-all min-h-[72px] touch-manipulation ${
                   currentNote?.id === note.id
                     ? 'bg-blue-100 dark:bg-blue-900 border-2 border-blue-500'
                     : 'bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 border-2 border-transparent'

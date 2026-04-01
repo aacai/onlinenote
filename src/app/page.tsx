@@ -20,15 +20,15 @@ export default function Home() {
       />
 
       <aside
-        className={`fixed lg:relative z-30 lg:z-auto w-64 h-full transform transition-transform duration-300 ease-in-out ${
-          showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        className={`fixed inset-y-0 left-0 z-30 w-64 transform transition-transform duration-300 ease-in-out lg:relative lg:z-auto lg:translate-x-0 ${
+          showSidebar ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <Sidebar />
       </aside>
 
       <div
-        className={`fixed lg:relative z-20 lg:z-auto w-80 h-full transform transition-transform duration-300 ease-in-out border-r border-gray-200 dark:border-gray-700 ${
+        className={`fixed inset-y-0 left-64 z-20 w-80 transform transition-transform duration-300 ease-in-out border-r border-gray-200 dark:border-gray-700 lg:relative lg:z-auto lg:left-0 lg:translate-x-0 ${
           showNoteList ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >

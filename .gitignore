@@ -12,7 +12,7 @@
 
 # testing
 /coverage
-
+/OnlineWebNote/
 # next.js
 /.next/
 /out/

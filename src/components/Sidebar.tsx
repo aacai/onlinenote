@@ -53,13 +53,13 @@ export default function Sidebar() {
           </h1>
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            className="p-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 active:bg-gray-400 dark:active:bg-gray-500 transition-colors min-w-[48px] min-h-[48px] touch-manipulation"
             title={theme === 'light' ? '切换到暗色模式' : '切换到亮色模式'}
           >
             {theme === 'light' ? (
-              <Moon size={20} className="text-gray-700" />
+              <Moon size={24} className="text-gray-700" />
             ) : (
-              <Sun size={20} className="text-yellow-400" />
+              <Sun size={24} className="text-yellow-400" />
             )}
           </button>
         </div>
@@ -73,10 +73,10 @@ export default function Sidebar() {
             </h2>
             <button
               onClick={() => setIsAddingCategory(true)}
-              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 transition-colors min-w-[40px] min-h-[40px] touch-manipulation"
               title="添加分类"
             >
-              <Plus size={16} className="text-gray-600 dark:text-gray-400" />
+              <Plus size={20} className="text-gray-600 dark:text-gray-400" />
             </button>
           </div>
 
@@ -125,7 +125,7 @@ export default function Sidebar() {
           <div className="space-y-1">
             <button
               onClick={() => setSelectedCategory(null)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+              className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors min-h-[48px] touch-manipulation ${
                 selectedCategory === null
                   ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
                   : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'

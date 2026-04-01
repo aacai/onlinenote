@@ -89,3 +89,27 @@ body {
 html, body, #__next {
   height: 100%;
 }
+
+/* 移动端触摸优化 */
+@media (max-width: 768px) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  button, a, input, select {
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+  
+  input, textarea, select {
+    font-size: 16px; /* 防止 iOS 自动缩放 */
+    user-select: text;
+  }
+  
+  /* 确保按钮点击区域足够大 */
+  button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

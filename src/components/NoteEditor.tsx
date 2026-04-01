@@ -170,24 +170,24 @@ export default function NoteEditor({ onClose }: NoteEditorProps) {
           <button
             onClick={handleSave}
             disabled={!hasChanges}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 active:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-[48px] touch-manipulation"
           >
-            <Save size={18} />
+            <Save size={20} />
             <span className="hidden sm:inline">保存笔记</span>
           </button>
           <button
             onClick={handleDelete}
-            className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            className="flex items-center gap-2 px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 active:bg-red-700 transition-colors min-h-[48px] touch-manipulation"
           >
-            <Trash2 size={18} />
+            <Trash2 size={20} />
             <span className="hidden sm:inline">删除</span>
           </button>
           {onClose && (
             <button
               onClick={onClose}
-              className="lg:hidden flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              className="lg:hidden flex items-center gap-2 px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 active:bg-gray-700 transition-colors min-h-[48px] touch-manipulation"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
           )}
         </div>
@@ -243,9 +243,9 @@ export default function NoteEditor({ onClose }: NoteEditorProps) {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                className="flex items-center gap-2 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 active:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm min-h-[48px] touch-manipulation"
               >
-                <Upload size={16} />
+                <Upload size={18} />
                 {isUploading ? '上传中...' : '上传文件'}
               </button>
             </div>

@@ -109,10 +109,6 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
     return { url: result.url, filename: result.filename };
   }, [currentNote]);
 
-  if (!mounted) {
-    return null;
-  }
-
   return (
     <NoteContext.Provider
       value={{
