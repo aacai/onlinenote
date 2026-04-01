@@ -390,11 +390,19 @@ export function SyncManager({ isOpen, onClose }: SyncManagerProps) {
                       <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
                         <div>
                           <p className="text-gray-500">本地版本</p>
-                          <p className="text-gray-700 dark:text-gray-300">{new Date(conflict.localData.updatedAt).toLocaleString()}</p>
+                          <p className="text-gray-700 dark:text-gray-300">
+                            {'updatedAt' in conflict.localData
+                              ? new Date(conflict.localData.updatedAt).toLocaleString()
+                              : '无时间信息'}
+                          </p>
                         </div>
                         <div>
                           <p className="text-gray-500">云端版本</p>
-                          <p className="text-gray-700 dark:text-gray-300">{new Date(conflict.remoteData.updatedAt).toLocaleString()}</p>
+                          <p className="text-gray-700 dark:text-gray-300">
+                            {'updatedAt' in conflict.remoteData
+                              ? new Date(conflict.remoteData.updatedAt).toLocaleString()
+                              : '无时间信息'}
+                          </p>
                         </div>
                       </div>
                       <div className="flex gap-2">
