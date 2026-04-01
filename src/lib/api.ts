@@ -1,10 +1,23 @@
 import { Note, Category } from '@/types/note';
+import { getStorageMode } from './storageConfig';
 
 const API_BASE = '/api';
 
+// 获取请求头，包含存储模式
+const getHeaders = (contentType = true): HeadersInit => {
+  const headers: HeadersInit = {};
+  if (contentType) {
+    headers['Content-Type'] = 'application/json';
+  }
+  headers['x-storage-mode'] = getStorageMode();
+  return headers;
+};
+
 export const api = {
   getNotes: async (): Promise<Note[]> => {
-    const response = await fetch(`${API_BASE}/notes`);
+    const response = await fetch(`${API_BASE}/notes`, {
+      headers: getHeaders(false),
+    });
     if (!response.ok) throw new Error('Failed to fetch notes');
     return response.json();
   },
@@ -12,7 +25,7 @@ export const api = {
   createNote: async (note: Partial<Note>): Promise<Note> => {
     const response = await fetch(`${API_BASE}/notes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify(note),
     });
     if (!response.ok) throw new Error('Failed to create note');
@@ -22,7 +35,7 @@ export const api = {
   updateNote: async (id: string, updates: Partial<Note>): Promise<Note> => {
     const response = await fetch(`${API_BASE}/notes/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify(updates),
     });
     if (!response.ok) throw new Error('Failed to update note');
@@ -32,12 +45,15 @@ export const api = {
   deleteNote: async (id: string): Promise<void> => {
     const response = await fetch(`${API_BASE}/notes/${id}`, {
       method: 'DELETE',
+      headers: getHeaders(false),
     });
     if (!response.ok) throw new Error('Failed to delete note');
   },
 
   getCategories: async (): Promise<Category[]> => {
-    const response = await fetch(`${API_BASE}/categories`);
+    const response = await fetch(`${API_BASE}/categories`, {
+      headers: getHeaders(false),
+    });
     if (!response.ok) throw new Error('Failed to fetch categories');
     return response.json();
   },
@@ -45,7 +61,7 @@ export const api = {
   addCategory: async (name: string, color: string): Promise<Category> => {
     const response = await fetch(`${API_BASE}/categories`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify({ name, color }),
     });
     if (!response.ok) throw new Error('Failed to create category');
@@ -55,6 +71,7 @@ export const api = {
   deleteCategory: async (id: string): Promise<void> => {
     const response = await fetch(`${API_BASE}/categories/${id}`, {
       method: 'DELETE',
+      headers: getHeaders(false),
     });
     if (!response.ok) throw new Error('Failed to delete category');
   },
@@ -73,6 +90,7 @@ export const api = {
     
     const response = await fetch(`${API_BASE}/upload`, {
       method: 'POST',
+      headers: { 'x-storage-mode': getStorageMode() },
       body: formData,
     });
     if (!response.ok) throw new Error('Failed to upload file');
@@ -83,7 +101,9 @@ export const api = {
     filename: string;
     url: string;
   }>> => {
-    const response = await fetch(`${API_BASE}/attachments/${noteId}`);
+    const response = await fetch(`${API_BASE}/attachments/${noteId}`, {
+      headers: getHeaders(false),
+    });
     if (!response.ok) throw new Error('Failed to fetch attachments');
     return response.json();
   },
@@ -91,6 +111,7 @@ export const api = {
   deleteAttachment: async (noteId: string, filename: string): Promise<void> => {
     const response = await fetch(`${API_BASE}/attachments/${noteId}/${filename}`, {
       method: 'DELETE',
+      headers: getHeaders(false),
     });
     if (!response.ok) throw new Error('Failed to delete attachment');
   },

@@ -3,11 +3,12 @@
 import React, { useState, useSyncExternalStore } from 'react';
 import { useNotes } from '@/contexts/NoteContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Folder, Plus, X, Sun, Moon, Tag, ChevronLeft, ChevronRight, Cloud, CloudOff } from 'lucide-react';
+import { Folder, Plus, X, Sun, Moon, Tag, ChevronLeft, ChevronRight, Cloud, CloudOff, Settings } from 'lucide-react';
 
 interface SidebarProps {
   onClose?: () => void;
   onOpenSync?: () => void;
+  onOpenSettings?: () => void;
 }
 
 // 使用 useSyncExternalStore 监听窗口大小
@@ -18,7 +19,7 @@ const subscribeToResize = (callback: () => void) => {
   return () => window.removeEventListener('resize', callback);
 };
 
-export default function Sidebar({ onClose, onOpenSync }: SidebarProps) {
+export default function Sidebar({ onClose, onOpenSync, onOpenSettings }: SidebarProps) {
   const {
     categories,
     selectedCategory,
@@ -315,7 +316,15 @@ export default function Sidebar({ onClose, onOpenSync }: SidebarProps) {
             {navigator.onLine ? <Cloud size={18} /> : <CloudOff size={18} />}
             <span>数据同步</span>
           </button>
-          
+
+          <button
+            onClick={onOpenSettings}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 active:bg-gray-400 dark:active:bg-gray-500 transition-all duration-200 font-medium"
+          >
+            <Settings size={18} />
+            <span>存储设置</span>
+          </button>
+
           <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
             <p>文件存储 · 数据可移植</p>
             <p className="mt-1">共 {notes.length} 篇笔记</p>

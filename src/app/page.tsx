@@ -5,6 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import NoteList from '@/components/NoteList';
 import NoteEditor from '@/components/NoteEditor';
 import { SyncManager } from '@/components/SyncManager';
+import { SettingsPanel } from '@/components/SettingsPanel';
 import { ArrowLeft } from 'lucide-react';
 import { useNotes } from '@/contexts/NoteContext';
 
@@ -21,6 +22,7 @@ export default function Home() {
   const [showNoteList, setShowNoteList] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSyncManager, setShowSyncManager] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const isMobile = useSyncExternalStore(
     subscribeToResize,
     getIsMobile,
@@ -54,7 +56,7 @@ export default function Home() {
           isFullscreen ? '-translate-x-full lg:translate-x-0' : (showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0')
         }`}
       >
-        <Sidebar onClose={() => setShowSidebar(false)} onOpenSync={() => setShowSyncManager(true)} />
+        <Sidebar onClose={() => setShowSidebar(false)} onOpenSync={() => setShowSyncManager(true)} onOpenSettings={() => setShowSettings(true)} />
       </aside>
 
       {/* NoteList - 桌面端始终显示，移动端只在无选中笔记时显示 */}
@@ -119,6 +121,9 @@ export default function Home() {
 
       {/* 同步管理弹窗 - 放在最外层避免被 transform 影响 */}
       <SyncManager isOpen={showSyncManager} onClose={() => setShowSyncManager(false)} />
+
+      {/* 设置面板 - 放在最外层避免被 transform 影响 */}
+      <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );
 }

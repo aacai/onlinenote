@@ -9,8 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.101.1",
     "@uiw/react-markdown-preview": "^5.2.0",
     "@uiw/react-md-editor": "^4.1.0",
+    "@upstash/redis": "^1.37.0",
     "lucide-react": "^1.7.0",
     "next": "^15.2.4",
     "react": "19.2.4",

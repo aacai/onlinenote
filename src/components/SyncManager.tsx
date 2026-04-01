@@ -36,8 +36,10 @@ interface SyncConflictItem {
 }
 
 // 使用 useSyncExternalStore 检测在线状态 (React 19 推荐方式)
-const getOnlineStatus = () => navigator.onLine;
+const getOnlineStatus = () => typeof navigator !== 'undefined' ? navigator.onLine : true;
+const getServerOnlineStatus = () => true;
 const subscribeOnlineStatus = (callback: () => void) => {
+  if (typeof window === 'undefined') return () => {};
   window.addEventListener('online', callback);
   window.addEventListener('offline', callback);
   return () => {
@@ -47,7 +49,7 @@ const subscribeOnlineStatus = (callback: () => void) => {
 };
 
 export function SyncManager({ isOpen, onClose }: SyncManagerProps) {
-  const isOnline = useSyncExternalStore(subscribeOnlineStatus, getOnlineStatus);
+  const isOnline = useSyncExternalStore(subscribeOnlineStatus, getOnlineStatus, getServerOnlineStatus);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [syncResult, setSyncResult] = useState<{

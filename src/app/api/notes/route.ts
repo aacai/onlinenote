@@ -1,22 +1,42 @@
 import { NextResponse } from 'next/server';
 import { fileStorage } from '@/lib/fileStorage';
+import { supabaseDb } from '@/lib/supabase';
+import { redisDb } from '@/lib/redis';
 
-export async function GET() {
+// 获取存储模式（从请求头或环境变量）
+const getStorageMode = (request: Request): 'local' | 'supabase' | 'redis' => {
+  const mode = request.headers.get('x-storage-mode');
+  if (mode === 'supabase') return 'supabase';
+  if (mode === 'redis') return 'redis';
+  return 'local';
+};
+
+export async function GET(request: Request) {
+  const mode = getStorageMode(request);
+
   try {
-    fileStorage.init();
-    const notes = fileStorage.getNotes();
-    return NextResponse.json(notes);
+    if (mode === 'supabase') {
+      const notes = await supabaseDb.getNotes();
+      return NextResponse.json(notes);
+    } else if (mode === 'redis') {
+      const notes = await redisDb.getNotes();
+      return NextResponse.json(notes);
+    } else {
+      fileStorage.init();
+      const notes = fileStorage.getNotes();
+      return NextResponse.json(notes);
+    }
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch notes' }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
+  const mode = getStorageMode(request);
+
   try {
-    fileStorage.init();
     const noteData = await request.json();
-    const notes = fileStorage.getNotes();
-    
+
     const newNote = {
       id: noteData.id || Date.now().toString(),
       title: noteData.title || '无标题笔记',
@@ -26,11 +46,20 @@ export async function POST(request: Request) {
       createdAt: noteData.createdAt || Date.now(),
       updatedAt: Date.now(),
     };
-    
-    notes.unshift(newNote);
-    fileStorage.saveNotes(notes);
-    
-    return NextResponse.json(newNote);
+
+    if (mode === 'supabase') {
+      const created = await supabaseDb.createNote(newNote);
+      return NextResponse.json(created);
+    } else if (mode === 'redis') {
+      const created = await redisDb.createNote(newNote);
+      return NextResponse.json(created);
+    } else {
+      fileStorage.init();
+      const notes = fileStorage.getNotes();
+      notes.unshift(newNote);
+      fileStorage.saveNotes(notes);
+      return NextResponse.json(newNote);
+    }
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create note' }, { status: 500 });
   }
