@@ -238,6 +238,43 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
     setSelectedNotes(new Set());
   };
 
+  // 键盘快捷键：Ctrl+A / Cmd+A 全选/取消全选，Delete 删除
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 忽略输入框中的快捷键
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      const isSelectAllShortcut = (e.ctrlKey || e.metaKey) && e.key === 'a';
+      const isDeleteKey = e.key === 'Delete' || e.key === 'Backspace';
+
+      if (isSelectAllShortcut) {
+        e.preventDefault();
+        if (!isBatchMode) {
+          // 首次按 Ctrl+A：进入批量模式并全选
+          setIsBatchMode(true);
+          setSelectedNotes(new Set(filteredAndSortedNotes.map(n => n.id)));
+        } else if (selectedNotes.size === filteredAndSortedNotes.length && filteredAndSortedNotes.length > 0) {
+          // 再次按 Ctrl+A 且已全部选中：取消全选
+          setSelectedNotes(new Set());
+        } else {
+          // 再次按 Ctrl+A 但未全部选中：全选
+          setSelectedNotes(new Set(filteredAndSortedNotes.map(n => n.id)));
+        }
+      }
+
+      if (isDeleteKey && isBatchMode && selectedNotes.size > 0) {
+        e.preventDefault();
+        handleBatchDelete();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isBatchMode, selectedNotes, filteredAndSortedNotes]);
+
   const getCategoryName = (categoryId: string) => {
     const category = categories.find(c => c.id === categoryId);
     return category?.name || '其他';

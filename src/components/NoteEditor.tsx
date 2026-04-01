@@ -141,16 +141,16 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
 
   const handleSave = async () => {
     if (!currentNote || isSaving) return;
-    
+
     // 检查是否为空笔记
     const trimmedContent = content.trim();
     const trimmedTitle = title.trim();
-    
+
     if (!trimmedContent && !trimmedTitle) {
       // 空笔记不保存
       return;
     }
-    
+
     setIsSaving(true);
     try {
       await updateNote(currentNote.id, { title, content, category });
@@ -164,6 +164,22 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
       setIsSaving(false);
     }
   };
+
+  // 键盘快捷键：Ctrl+S / Cmd+S 保存
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isSaveShortcut = (e.ctrlKey || e.metaKey) && e.key === 's';
+      if (isSaveShortcut) {
+        e.preventDefault();
+        if (currentNote && hasChanges) {
+          handleSave();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentNote, hasChanges, title, content, category]);
 
   const handleDelete = async () => {
     if (!currentNote) return;
