@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useNotes } from '@/contexts/NoteContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Save, Trash2, X, Upload, FileText, Download, Paperclip, Check, Maximize2, Minimize2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Save, Trash2, X, Upload, Download, Paperclip, Check, Maximize2, Minimize2, ChevronUp, ChevronDown } from 'lucide-react';
 import { api } from '@/lib/api';
 
 const MDEditor = dynamic(
@@ -80,7 +80,27 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
     }
   }, [currentNote]);
 
-  // 自动保存
+  // 自动保存函数
+  const handleAutoSave = async () => {
+    if (!currentNote || isSaving) return;
+    
+    try {
+      setIsSaving(true);
+      await updateNote(currentNote.id, { title, content, category });
+      setHasChanges(false);
+      setUploadSuccess(true);
+      setTimeout(() => setUploadSuccess(false), 2000);
+    } catch (error) {
+      console.error('Auto save failed:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 自动保存 - 使用 ref 避免依赖问题
+  const handleAutoSaveRef = useRef(handleAutoSave);
+  handleAutoSaveRef.current = handleAutoSave;
+  
   useEffect(() => {
     if (currentNote && hasChanges) {
       // 清除之前的定时器
@@ -99,7 +119,7 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
         }
         
         // 执行保存
-        handleAutoSave();
+        handleAutoSaveRef.current();
       }, 3000);
     }
     
@@ -109,22 +129,6 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
       }
     };
   }, [title, content, category, hasChanges, currentNote]);
-
-  const handleAutoSave = async () => {
-    if (!currentNote || isSaving) return;
-    
-    try {
-      setIsSaving(true);
-      await updateNote(currentNote.id, { title, content, category });
-      setHasChanges(false);
-      setUploadSuccess(true);
-      setTimeout(() => setUploadSuccess(false), 2000);
-    } catch (error) {
-      console.error('Auto save failed:', error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const loadAttachments = async (noteId: string) => {
     try {

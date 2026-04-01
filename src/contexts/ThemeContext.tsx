@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useSyncExternalStore } from 'react';
 
 type Theme = 'light' | 'dark';
 
@@ -40,15 +40,22 @@ const applyThemeToDOM = (theme: Theme) => {
 };
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('light');
-  const [mounted, setMounted] = useState(false);
+  // 使用懒加载初始化状态，避免在 effect 中设置
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'light';
+    return getInitialTheme();
+  });
 
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
+  // 在 effect 中应用主题到 DOM
   useEffect(() => {
-    const initial = getInitialTheme();
-    setThemeState(initial);
-    applyThemeToDOM(initial);
-    setMounted(true);
-  }, []);
+    applyThemeToDOM(theme);
+  }, [theme]);
 
   useEffect(() => {
     if (!mounted) return;

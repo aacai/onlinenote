@@ -9,7 +9,7 @@ export async function GET(
     fileStorage.init();
     const { id } = await params;
     const notes = fileStorage.getNotes();
-    const note = notes.find((n: any) => n.id === id);
+    const note = notes.find((n: { id: string }) => n.id === id);
     
     if (!note) {
       return NextResponse.json({ error: 'Note not found' }, { status: 404 });
@@ -31,7 +31,7 @@ export async function PUT(
     const updates = await request.json();
     const notes = fileStorage.getNotes();
     
-    const index = notes.findIndex((n: any) => n.id === id);
+    const index = notes.findIndex((n: { id: string }) => n.id === id);
     if (index === -1) {
       return NextResponse.json({ error: 'Note not found' }, { status: 404 });
     }
@@ -59,7 +59,7 @@ export async function DELETE(
     const { id } = await params;
     const notes = fileStorage.getNotes();
     
-    const filteredNotes = notes.filter((n: any) => n.id !== id);
+    const filteredNotes = notes.filter((n: { id: string }) => n.id !== id);
     fileStorage.saveNotes(filteredNotes);
     
     fileStorage.deleteNoteAttachments(id);

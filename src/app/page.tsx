@@ -1,27 +1,36 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useSyncExternalStore } from 'react';
 import Sidebar from '@/components/Sidebar';
 import NoteList from '@/components/NoteList';
 import NoteEditor from '@/components/NoteEditor';
-import { Menu, X, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useNotes } from '@/contexts/NoteContext';
+
+// 使用 useSyncExternalStore 监听窗口大小
+const getIsMobile = () => typeof window !== 'undefined' ? window.innerWidth < 1024 : false;
+
+const subscribeToResize = (callback: () => void) => {
+  window.addEventListener('resize', callback);
+  return () => window.removeEventListener('resize', callback);
+};
 
 export default function Home() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showNoteList, setShowNoteList] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const isMobile = useSyncExternalStore(
+    subscribeToResize,
+    getIsMobile,
+    () => false // 服务端默认值
+  );
   const { currentNote, selectNote } = useNotes();
 
-  useEffect(() => {
-    setMounted(true);
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   // 移动端：当有当前笔记时，显示编辑器；否则显示笔记列表
   const showEditorOnMobile = isMobile && currentNote !== null;

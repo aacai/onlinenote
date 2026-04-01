@@ -31,7 +31,6 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
 
   const refreshNotes = useCallback(async () => {
     try {
@@ -46,9 +45,16 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // 使用 useEffect 只用于数据获取，避免直接 setState
   useEffect(() => {
-    setMounted(true);
-    refreshNotes();
+    let isMounted = true;
+    const init = async () => {
+      if (isMounted) {
+        await refreshNotes();
+      }
+    };
+    init();
+    return () => { isMounted = false; };
   }, [refreshNotes]);
 
   const createNote = useCallback(async (noteData: Partial<Note>): Promise<Note> => {

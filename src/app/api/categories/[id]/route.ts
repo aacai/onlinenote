@@ -10,7 +10,7 @@ export async function DELETE(
     const { id } = await params;
     const categories = fileStorage.getCategories();
     
-    const filteredCategories = categories.filter((c: any) => c.id !== id);
+    const filteredCategories = categories.filter((c: { id: string }) => c.id !== id);
     fileStorage.saveCategories(filteredCategories);
     
     return NextResponse.json({ success: true });

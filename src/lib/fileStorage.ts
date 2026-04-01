@@ -37,7 +37,7 @@ export const fileStorage = {
     }
   },
 
-  saveNotes: (notes: any[]) => {
+  saveNotes: (notes: unknown[]) => {
     fs.writeFileSync(NOTES_FILE, JSON.stringify(notes, null, 2));
   },
 
@@ -55,7 +55,7 @@ export const fileStorage = {
     }
   },
 
-  saveCategories: (categories: any[]) => {
+  saveCategories: (categories: unknown[]) => {
     fs.writeFileSync(CATEGORIES_FILE, JSON.stringify(categories, null, 2));
   },
 

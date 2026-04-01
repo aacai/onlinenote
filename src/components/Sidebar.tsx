@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useSyncExternalStore } from 'react';
 import { useNotes } from '@/contexts/NoteContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Folder, Plus, X, Sun, Moon, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -8,6 +8,14 @@ import { Folder, Plus, X, Sun, Moon, Tag, ChevronLeft, ChevronRight } from 'luci
 interface SidebarProps {
   onClose?: () => void;
 }
+
+// 使用 useSyncExternalStore 监听窗口大小
+const getIsMobile = () => typeof window !== 'undefined' ? window.innerWidth < 1024 : false;
+
+const subscribeToResize = (callback: () => void) => {
+  window.addEventListener('resize', callback);
+  return () => window.removeEventListener('resize', callback);
+};
 
 export default function Sidebar({ onClose }: SidebarProps) {
   const {
@@ -23,16 +31,17 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryColor, setNewCategoryColor] = useState('#3b82f6');
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useSyncExternalStore(
+    subscribeToResize,
+    getIsMobile,
+    () => false
+  );
 
-  useEffect(() => {
-    setMounted(true);
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   const predefinedColors = [
     '#3b82f6', '#10b981', '#f59e0b', '#ef4444',

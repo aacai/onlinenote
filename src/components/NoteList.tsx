@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNotes } from '@/contexts/NoteContext';
 import { Plus, FileText, Menu, Search, ArrowUpDown, ArrowUp, ArrowDown, Trash2, X, CheckSquare, Square, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -44,11 +44,14 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
     categories,
   } = useNotes();
 
-  // 防抖搜索
+  // 防抖搜索 - 使用 ref 避免依赖问题
+  const localSearchQueryRef = React.useRef(localSearchQuery);
+  localSearchQueryRef.current = localSearchQuery;
+  
   useEffect(() => {
     setSearchLoading(true);
     const timer = setTimeout(() => {
-      setSearchQuery(localSearchQuery);
+      setSearchQuery(localSearchQueryRef.current);
       setSearchLoading(false);
     }, 150);
     return () => clearTimeout(timer);
@@ -91,7 +94,7 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
   const filteredAndSortedNotes = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
     
-    let filtered = notes.filter(note => {
+    const filtered = notes.filter(note => {
       const matchesCategory = !selectedCategory || note.category === selectedCategory;
       
       if (!query) return matchesCategory;
@@ -110,7 +113,7 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
     });
 
     // 排序
-    filtered.sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       let comparison = 0;
       
       switch (sortField) {
@@ -128,8 +131,6 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
       
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-
-    return filtered;
   }, [notes, searchQuery, selectedCategory, sortField, sortOrder, attachmentsMap]);
 
   const handleSort = (field: SortField) => {
