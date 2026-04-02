@@ -57,3 +57,13 @@ data/attachments/
 # logs
 logs/
 *.log
+
+# Tauri
+src-tauri/target/
+src-tauri/nodejs/
+src-tauri/resources/
+src-tauri/Cargo.lock
+
+# Tauri build output
+OnlineWebNote.app/
+*.dmg
