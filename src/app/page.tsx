@@ -9,12 +9,22 @@ import { SettingsPanel } from '@/components/SettingsPanel';
 import { ArrowLeft } from 'lucide-react';
 import { useNotes } from '@/contexts/NoteContext';
 
-// 使用 useSyncExternalStore 监听窗口大小
+// 使用 useSyncExternalStore 监听窗口大小（带节流）
 const getIsMobile = () => typeof window !== 'undefined' ? window.innerWidth < 1024 : false;
 
 const subscribeToResize = (callback: () => void) => {
-  window.addEventListener('resize', callback);
-  return () => window.removeEventListener('resize', callback);
+  let ticking = false;
+  const throttledCallback = () => {
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        callback();
+        ticking = false;
+      });
+      ticking = true;
+    }
+  };
+  window.addEventListener('resize', throttledCallback);
+  return () => window.removeEventListener('resize', throttledCallback);
 };
 
 export default function Home() {

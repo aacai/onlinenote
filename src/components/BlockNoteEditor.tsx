@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useSyncExternalStore, useState, useCallback, useEffect } from 'react';
+import React, { useSyncExternalStore, useCallback, useEffect } from 'react';
 import { BlockNoteEditor as Editor, filterSuggestionItems } from '@blocknote/core';
 import { BlockNoteView } from '@blocknote/mantine';
 import {
@@ -172,11 +172,19 @@ export default function BlockNoteEditor({
     }
   }, [editor, onChange]);
 
+  // 缓存内容哈希避免重复解析
+  const contentHashRef = React.useRef<string>('');
+
   // 当外部 content 变化时更新编辑器内容
   useEffect(() => {
     if (editor && isMounted) {
+      // 使用简单哈希对比，避免重复解析相同内容
+      const newHash = `${content.length}:${content.slice(0, 100)}:${content.slice(-100)}`;
+      if (newHash === contentHashRef.current) return;
+
       const currentMarkdown = blocksToMarkdown(editor.document as never[]);
       if (currentMarkdown !== content) {
+        contentHashRef.current = newHash;
         const newBlocks = parseMarkdownToBlocks(content);
         editor.replaceBlocks(editor.document, newBlocks as never[]);
       }

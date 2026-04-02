@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useNotes } from '@/contexts/NoteContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -10,7 +10,14 @@ import { api } from '@/lib/api';
 
 const BlockNoteEditor = dynamic(
   () => import('./BlockNoteEditor').then((mod) => mod.default),
-  { ssr: false }
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-full w-full flex items-center justify-center bg-white dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+      </div>
+    ),
+  }
 );
 
 interface NoteEditorProps {
@@ -56,6 +63,17 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const prevNoteRef = useRef<{ id: string; title: string; content: string } | null>(null);
+  // 使用 ref 保存最新值，避免闭包问题
+  const titleRef = useRef(title);
+  const contentRef = useRef(content);
+  const categoryRef = useRef(category);
+  // 保存定时器创建时的内容哈希，用于对比
+  const contentHashRef = useRef<string>('');
+
+  // 计算内容哈希
+  const computeHash = (title: string, content: string, category: string): string => {
+    return `${title}:${content.length}:${category}`;
+  };
 
   // 监听笔记切换，检查并删除空笔记
   useEffect(() => {
@@ -105,13 +123,23 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
     return () => window.removeEventListener('storageModeChange', updateStorageMode);
   }, []);
 
-  // 自动保存函数
+  // 同步 ref 与 state
+  useEffect(() => { titleRef.current = title; }, [title]);
+  useEffect(() => { contentRef.current = content; }, [content]);
+  useEffect(() => { categoryRef.current = category; }, [category]);
+
+  // 自动保存函数 - 使用 ref 获取最新值
   const handleAutoSave = async () => {
     if (!currentNote || isSaving) return;
-    
+
     try {
       setIsSaving(true);
-      await updateNote(currentNote.id, { title, content, category });
+      // 使用 ref 获取最新值，避免闭包问题
+      await updateNote(currentNote.id, {
+        title: titleRef.current,
+        content: contentRef.current,
+        category: categoryRef.current
+      });
       setHasChanges(false);
       setUploadSuccess(true);
       setTimeout(() => setUploadSuccess(false), 2000);
@@ -125,29 +153,41 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
   // 自动保存 - 使用 ref 避免依赖问题
   const handleAutoSaveRef = useRef(handleAutoSave);
   handleAutoSaveRef.current = handleAutoSave;
-  
+
   useEffect(() => {
     if (currentNote && hasChanges) {
       // 清除之前的定时器
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
       }
-      
-      // 3秒后自动保存（如果内容非空）
+
+      // 记录当前内容哈希
+      const currentHash = computeHash(title, content, category);
+      contentHashRef.current = currentHash;
+
+      // 3秒后自动保存（如果内容非空且未变化）
       autoSaveTimerRef.current = setTimeout(() => {
-        const trimmedContent = content.trim();
-        const trimmedTitle = title.trim();
-        
-        // 如果标题和内容都为空，不保存
-        if (!trimmedContent && !trimmedTitle) {
+        const trimmedContent = contentRef.current.trim();
+        const trimmedTitle = titleRef.current.trim();
+
+        // 如果标题和内容都为空，或者标题为默认值且内容为空，不保存
+        const isDefaultTitle = trimmedTitle === '新笔记' || trimmedTitle === '无标题笔记';
+        if ((!trimmedContent && !trimmedTitle) || (isDefaultTitle && !trimmedContent)) {
           return;
         }
-        
+
+        // 对比哈希，如果内容已变化则跳过（会重新触发定时器）
+        const newHash = computeHash(titleRef.current, contentRef.current, categoryRef.current);
+        if (newHash !== contentHashRef.current) {
+          console.log('Content changed during debounce, skipping auto-save');
+          return;
+        }
+
         // 执行保存
         handleAutoSaveRef.current();
       }, 3000);
     }
-    
+
     return () => {
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
@@ -164,12 +204,12 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!currentNote || isSaving) return;
 
-    // 检查是否为空笔记
-    const trimmedContent = content.trim();
-    const trimmedTitle = title.trim();
+    // 检查是否为空笔记（使用 ref 获取最新值）
+    const trimmedContent = contentRef.current.trim();
+    const trimmedTitle = titleRef.current.trim();
 
     if (!trimmedContent && !trimmedTitle) {
       // 空笔记不保存
@@ -178,7 +218,12 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
 
     setIsSaving(true);
     try {
-      await updateNote(currentNote.id, { title, content, category });
+      // 使用 ref 获取最新值，避免闭包问题
+      await updateNote(currentNote.id, {
+        title: titleRef.current,
+        content: contentRef.current,
+        category: categoryRef.current
+      });
       setHasChanges(false);
       setUploadSuccess(true);
       setTimeout(() => setUploadSuccess(false), 2000);
@@ -188,7 +233,7 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [currentNote, isSaving, updateNote]);
 
   // 键盘快捷键：Ctrl+S / Cmd+S 保存
   useEffect(() => {

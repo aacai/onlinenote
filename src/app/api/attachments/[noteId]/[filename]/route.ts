@@ -23,7 +23,7 @@ export async function GET(
         'Cache-Control': 'public, max-age=31536000',
       },
     });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Failed to fetch file' }, { status: 500 });
   }
 }
@@ -39,14 +39,14 @@ export async function POST(
     if (action === 'delete') {
       fileStorage.init();
       const { noteId, filename } = await params;
-      
+
       fileStorage.deleteAttachment(noteId, filename);
-      
+
       return NextResponse.json({ success: true });
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Failed to delete file' }, { status: 500 });
   }
 }

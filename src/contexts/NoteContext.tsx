@@ -129,9 +129,14 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
     setNotes(prev => prev.map(n => n.id === id ? { ...n, ...updateData } : n));
     
     try {
-      await api.updateNote(id, updates);
-      await refreshNotes();
-      scheduleSync(3000);
+      const updated = await api.updateNote(id, updates);
+      // 用返回的数据更新本地状态，避免重新获取全部
+      setNotes(prev => prev.map(n => n.id === id ? updated : n));
+      if (currentNote?.id === id) {
+        setCurrentNote(updated);
+      }
+      // 更新成功且拿到服务端数据，不需要立即同步
+      // scheduleSync(3000);
     } catch (error) {
       console.log('Note updated locally, will sync when online');
     }
@@ -140,21 +145,21 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
   const deleteNote = useCallback(async (id: string) => {
     // 添加到待同步队列
     addPendingChange({ type: 'delete', entity: 'note', data: { id } });
-    
+
     // 乐观更新本地状态
     setNotes(prev => prev.filter(n => n.id !== id));
     if (currentNote?.id === id) {
       setCurrentNote(null);
     }
-    
+
     try {
       await api.deleteNote(id);
-      await refreshNotes();
+      // 删除成功，乐观更新已处理本地状态，无需重新获取全部
       scheduleSync(3000);
     } catch (error) {
       console.log('Note deleted locally, will sync when online');
     }
-  }, [currentNote, refreshNotes]);
+  }, [currentNote]);
 
   const selectNote = useCallback((id: string | null) => {
     if (id) {

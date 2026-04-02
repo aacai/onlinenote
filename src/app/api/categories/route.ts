@@ -1,18 +1,8 @@
 import { NextResponse } from 'next/server';
-import { MongoClient } from 'mongodb';
 import { fileStorage } from '@/lib/fileStorage';
 import { supabaseDb } from '@/lib/supabase';
 import { redisDb } from '@/lib/redis';
-import { getStorageConfig } from '@/lib/storageConfig';
-
-const MONGODB_DB_NAME = 'markdown_notes';
-
-const getMongoClient = async () => {
-  const config = getStorageConfig();
-  const client = new MongoClient(config.mongodbUri);
-  await client.connect();
-  return client;
-};
+import { getMongoDb } from '@/lib/mongodb';
 
 const getStorageMode = (request: Request): 'local' | 'supabase' | 'redis' | 'mongodb' => {
   const mode = request.headers.get('x-storage-mode');
@@ -33,13 +23,9 @@ export async function GET(request: Request) {
       const categories = await redisDb.getCategories();
       return NextResponse.json(categories);
     } else if (mode === 'mongodb') {
-      const client = await getMongoClient();
-      try {
-        const categories = await client.db(MONGODB_DB_NAME).collection('categories').find({}).sort({ name: 1 }).toArray();
-        return NextResponse.json(categories);
-      } finally {
-        await client.close();
-      }
+      const db = await getMongoDb();
+      const categories = await db.collection('categories').find({}).sort({ name: 1 }).toArray();
+      return NextResponse.json(categories);
     } else {
       fileStorage.init();
       const categories = fileStorage.getCategories();
@@ -71,13 +57,9 @@ export async function POST(request: Request) {
       const created = await redisDb.createCategory(newCategory);
       return NextResponse.json(created);
     } else if (mode === 'mongodb') {
-      const client = await getMongoClient();
-      try {
-        const result = await client.db(MONGODB_DB_NAME).collection('categories').insertOne(newCategory);
-        return NextResponse.json({ ...newCategory, _id: result.insertedId });
-      } finally {
-        await client.close();
-      }
+      const db = await getMongoDb();
+      const result = await db.collection('categories').insertOne(newCategory);
+      return NextResponse.json({ ...newCategory, _id: result.insertedId });
     } else {
       fileStorage.init();
       const categories = fileStorage.getCategories();
@@ -85,7 +67,7 @@ export async function POST(request: Request) {
       fileStorage.saveCategories(categories);
       return NextResponse.json(newCategory);
     }
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Failed to create category' }, { status: 500 });
   }
 }

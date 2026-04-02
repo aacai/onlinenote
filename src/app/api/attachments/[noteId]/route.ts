@@ -17,7 +17,7 @@ export async function GET(
     }));
     
     return NextResponse.json(attachmentList);
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Failed to fetch attachments' }, { status: 500 });
   }
 }

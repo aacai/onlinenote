@@ -1,18 +1,8 @@
 import { NextResponse } from 'next/server';
-import { MongoClient } from 'mongodb';
 import { fileStorage } from '@/lib/fileStorage';
 import { supabaseDb } from '@/lib/supabase';
 import { redisDb } from '@/lib/redis';
-import { getStorageConfig } from '@/lib/storageConfig';
-
-const MONGODB_DB_NAME = 'markdown_notes';
-
-const getMongoClient = async () => {
-  const config = getStorageConfig();
-  const client = new MongoClient(config.mongodbUri);
-  await client.connect();
-  return client;
-};
+import { getMongoDb } from '@/lib/mongodb';
 
 const getStorageMode = (request: Request): 'local' | 'supabase' | 'redis' | 'mongodb' => {
   const mode = request.headers.get('x-storage-mode');
@@ -46,16 +36,12 @@ export async function GET(
       }
       return NextResponse.json(note);
     } else if (mode === 'mongodb') {
-      const client = await getMongoClient();
-      try {
-        const note = await client.db(MONGODB_DB_NAME).collection('notes').findOne({ id });
-        if (!note) {
-          return NextResponse.json({ error: 'Note not found' }, { status: 404 });
-        }
-        return NextResponse.json(note);
-      } finally {
-        await client.close();
+      const db = await getMongoDb();
+      const note = await db.collection('notes').findOne({ id });
+      if (!note) {
+        return NextResponse.json({ error: 'Note not found' }, { status: 404 });
       }
+      return NextResponse.json(note);
     } else {
       fileStorage.init();
       const notes = fileStorage.getNotes();
@@ -65,7 +51,7 @@ export async function GET(
       }
       return NextResponse.json(note);
     }
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Failed to fetch note' }, { status: 500 });
   }
 }
@@ -90,17 +76,13 @@ export async function POST(
         const updated = await redisDb.updateNote(id, data);
         return NextResponse.json(updated);
       } else if (mode === 'mongodb') {
-        const client = await getMongoClient();
-        try {
-          const result = await client.db(MONGODB_DB_NAME).collection('notes').findOneAndUpdate(
-            { id },
-            { $set: { ...data, updatedAt: Date.now() } },
-            { returnDocument: 'after' }
-          );
-          return NextResponse.json(result);
-        } finally {
-          await client.close();
-        }
+        const db = await getMongoDb();
+        const result = await db.collection('notes').findOneAndUpdate(
+          { id },
+          { $set: { ...data, updatedAt: Date.now() } },
+          { returnDocument: 'after' }
+        );
+        return NextResponse.json(result);
       } else {
         fileStorage.init();
         const notes = fileStorage.getNotes();
@@ -127,14 +109,10 @@ export async function POST(
         fileStorage.deleteNoteAttachments(id);
         return NextResponse.json({ success: true });
       } else if (mode === 'mongodb') {
-        const client = await getMongoClient();
-        try {
-          await client.db(MONGODB_DB_NAME).collection('notes').deleteOne({ id });
-          fileStorage.deleteNoteAttachments(id);
-          return NextResponse.json({ success: true });
-        } finally {
-          await client.close();
-        }
+        const db = await getMongoDb();
+        await db.collection('notes').deleteOne({ id });
+        fileStorage.deleteNoteAttachments(id);
+        return NextResponse.json({ success: true });
       } else {
         fileStorage.init();
         const notes = fileStorage.getNotes();
@@ -146,7 +124,7 @@ export async function POST(
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Failed to process note' }, { status: 500 });
   }
 }

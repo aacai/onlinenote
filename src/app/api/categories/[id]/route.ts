@@ -1,18 +1,8 @@
 import { NextResponse } from 'next/server';
-import { MongoClient } from 'mongodb';
 import { fileStorage } from '@/lib/fileStorage';
 import { supabaseDb } from '@/lib/supabase';
 import { redisDb } from '@/lib/redis';
-import { getStorageConfig } from '@/lib/storageConfig';
-
-const MONGODB_DB_NAME = 'markdown_notes';
-
-const getMongoClient = async () => {
-  const config = getStorageConfig();
-  const client = new MongoClient(config.mongodbUri);
-  await client.connect();
-  return client;
-};
+import { getMongoDb } from '@/lib/mongodb';
 
 const getStorageMode = (request: Request): 'local' | 'supabase' | 'redis' | 'mongodb' => {
   const mode = request.headers.get('x-storage-mode');
@@ -42,13 +32,9 @@ export async function POST(
         await redisDb.deleteCategory(id);
         return NextResponse.json({ success: true });
       } else if (mode === 'mongodb') {
-        const client = await getMongoClient();
-        try {
-          await client.db(MONGODB_DB_NAME).collection('categories').deleteOne({ id });
-          return NextResponse.json({ success: true });
-        } finally {
-          await client.close();
-        }
+        const db = await getMongoDb();
+        await db.collection('categories').deleteOne({ id });
+        return NextResponse.json({ success: true });
       } else {
         fileStorage.init();
         const categories = fileStorage.getCategories();
@@ -59,7 +45,7 @@ export async function POST(
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Failed to process category' }, { status: 500 });
   }
 }

@@ -36,14 +36,21 @@ export const clearRedisLogs = () => {
   redisLogs = [];
 };
 
-// 创建 Redis 客户端
+// 单例 Redis 客户端
+let redisClient: Redis | null = null;
+
+// 创建 Redis 客户端（复用单例）
 const createRedisClient = () => {
+  if (redisClient) {
+    return redisClient;
+  }
   const config = getStorageConfig();
   addRedisLog('info', '创建 Redis 客户端', `URL: ${config.redisUrl}`);
-  return new Redis({
+  redisClient = new Redis({
     url: config.redisUrl,
     token: config.redisToken,
   });
+  return redisClient;
 };
 
 // 检查 Redis 连接

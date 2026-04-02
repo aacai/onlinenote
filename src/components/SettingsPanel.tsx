@@ -5,7 +5,7 @@ import { X, Database, HardDrive, Check, AlertCircle, RefreshCw, Terminal, Copy, 
 import { setStorageMode, getStorageMode, StorageMode } from '@/lib/storageConfig';
 import { checkSupabaseConnection, getConnectionLogs, clearConnectionLogs, ConnectionLog } from '@/lib/supabase';
 import { checkRedisConnection, getRedisLogs, clearRedisLogs, RedisLog } from '@/lib/redis';
-import { checkMongoDBConnection, getMongoDBLogs, clearMongoDBLogs, MongoDBLog } from '@/lib/mongodb';
+import { checkMongoDBConnection, getMongoDBLogs, clearMongoDBLogs, MongoDBLog } from '@/lib/mongodb-client';
 
 interface SettingsPanelProps {
   isOpen: boolean;

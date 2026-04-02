@@ -62,13 +62,13 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
   // 防抖搜索 - 使用 ref 避免依赖问题
   const localSearchQueryRef = React.useRef(localSearchQuery);
   localSearchQueryRef.current = localSearchQuery;
-  
+
   useEffect(() => {
     setSearchLoading(true);
     const timer = setTimeout(() => {
       setSearchQuery(localSearchQuery);
       setSearchLoading(false);
-    }, 150);
+    }, 300);
     return () => clearTimeout(timer);
   }, [localSearchQuery]);
 
@@ -93,9 +93,15 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
     return () => window.removeEventListener('storageModeChange', updateStorageMode);
   }, []);
 
-  // 加载所有笔记的附件
+  // 按需加载附件 - 只在有搜索关键词时加载用于附件搜索
   useEffect(() => {
-    const loadAllAttachments = async () => {
+    const loadAttachmentsForSearch = async () => {
+      // 只在有搜索关键词时才加载附件
+      if (!searchQuery.trim()) {
+        setAttachmentsMap(new Map());
+        return;
+      }
+
       const newMap = new Map<string, Attachment[]>();
       await Promise.all(
         notes.map(async (note) => {
@@ -109,11 +115,11 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
       );
       setAttachmentsMap(newMap);
     };
-    
+
     if (notes.length > 0) {
-      loadAllAttachments();
+      loadAttachmentsForSearch();
     }
-  }, [notes]);
+  }, [notes, searchQuery]);
 
   // 过滤和排序笔记
   const filteredAndSortedNotes = useMemo(() => {
