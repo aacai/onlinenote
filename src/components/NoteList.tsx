@@ -51,11 +51,11 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
   useEffect(() => {
     setSearchLoading(true);
     const timer = setTimeout(() => {
-      setSearchQuery(localSearchQueryRef.current);
+      setSearchQuery(localSearchQuery);
       setSearchLoading(false);
     }, 150);
     return () => clearTimeout(timer);
-  }, [localSearchQuery, setSearchQuery]);
+  }, [localSearchQuery]);
 
   // 同步外部搜索词
   useEffect(() => {

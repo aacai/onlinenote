@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useSyncExternalStore, useState, useCallback, useEffect } from 'react';
 import { BlockNoteEditor as Editor, filterSuggestionItems } from '@blocknote/core';
 import { BlockNoteView } from '@blocknote/mantine';
 import {
@@ -152,15 +152,16 @@ export default function BlockNoteEditor({
   editable = true,
 }: BlockNoteEditorProps) {
   const { theme } = useTheme();
-  const [isMounted, setIsMounted] = useState(false);
+
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   const editor = useCreateBlockNote({
     initialContent: parseMarkdownToBlocks(content) as never[],
   });
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   // 监听内容变化
   const handleChange = useCallback(() => {

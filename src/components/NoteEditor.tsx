@@ -25,7 +25,7 @@ interface Attachment {
 
 export default function NoteEditor({ onClose, isFullscreen = false, onToggleFullscreen }: NoteEditorProps) {
   const { currentNote, updateNote, deleteNote, categories, uploadFile } = useNotes();
-  const { theme } = useTheme();
+  useTheme();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
@@ -179,7 +179,7 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentNote, hasChanges, title, content, category]);
+  }, [currentNote, hasChanges, title, content, category, handleSave]);
 
   const handleDelete = async () => {
     if (!currentNote) return;
