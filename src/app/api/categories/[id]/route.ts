@@ -22,7 +22,7 @@ const getStorageMode = (request: Request): 'local' | 'supabase' | 'redis' | 'mon
   return 'local';
 };
 
-export async function DELETE(
+export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -30,29 +30,36 @@ export async function DELETE(
 
   try {
     const { id } = await params;
+    const body = await request.json();
+    const { action } = body;
 
-    if (mode === 'supabase') {
-      await supabaseDb.deleteCategory(id);
-      return NextResponse.json({ success: true });
-    } else if (mode === 'redis') {
-      await redisDb.deleteCategory(id);
-      return NextResponse.json({ success: true });
-    } else if (mode === 'mongodb') {
-      const client = await getMongoClient();
-      try {
-        await client.db(MONGODB_DB_NAME).collection('categories').deleteOne({ id });
+    if (action === 'delete') {
+      // 删除分类
+      if (mode === 'supabase') {
+        await supabaseDb.deleteCategory(id);
         return NextResponse.json({ success: true });
-      } finally {
-        await client.close();
+      } else if (mode === 'redis') {
+        await redisDb.deleteCategory(id);
+        return NextResponse.json({ success: true });
+      } else if (mode === 'mongodb') {
+        const client = await getMongoClient();
+        try {
+          await client.db(MONGODB_DB_NAME).collection('categories').deleteOne({ id });
+          return NextResponse.json({ success: true });
+        } finally {
+          await client.close();
+        }
+      } else {
+        fileStorage.init();
+        const categories = fileStorage.getCategories();
+        const filteredCategories = categories.filter((c: { id: string }) => c.id !== id);
+        fileStorage.saveCategories(filteredCategories);
+        return NextResponse.json({ success: true });
       }
     } else {
-      fileStorage.init();
-      const categories = fileStorage.getCategories();
-      const filteredCategories = categories.filter((c: { id: string }) => c.id !== id);
-      fileStorage.saveCategories(filteredCategories);
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to delete category' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to process category' }, { status: 500 });
   }
 }

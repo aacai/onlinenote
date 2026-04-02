@@ -75,6 +75,7 @@ export async function POST(request: Request) {
       content: noteData.content || '',
       category: noteData.category || '4',
       tags: noteData.tags || [],
+      user: noteData.user || 'anonymous',
       createdAt: noteData.createdAt || Date.now(),
       updatedAt: Date.now(),
     };

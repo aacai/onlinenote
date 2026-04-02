@@ -4,6 +4,7 @@ export interface Note {
   content: string;
   category: string;
   tags: string[];
+  user: string;
   createdAt: number;
   updatedAt: number;
 }

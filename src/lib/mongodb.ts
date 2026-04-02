@@ -132,12 +132,12 @@ export const mongodbDb = {
     addMongoDBLog('info', '更新笔记...', `ID: ${id}`);
 
     const response = await fetch(`${getApiBaseUrl()}/api/notes/${id}`, {
-      method: 'PUT',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-storage-mode': 'mongodb',
       },
-      body: JSON.stringify(updates),
+      body: JSON.stringify({ action: 'update', ...updates }),
     });
 
     if (!response.ok) {
@@ -154,10 +154,12 @@ export const mongodbDb = {
     addMongoDBLog('info', '删除笔记...', `ID: ${id}`);
 
     const response = await fetch(`${getApiBaseUrl()}/api/notes/${id}`, {
-      method: 'DELETE',
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'x-storage-mode': 'mongodb',
       },
+      body: JSON.stringify({ action: 'delete' }),
     });
 
     if (!response.ok) {
@@ -213,10 +215,12 @@ export const mongodbDb = {
     addMongoDBLog('info', '删除分类...', `ID: ${id}`);
 
     const response = await fetch(`${getApiBaseUrl()}/api/categories/${id}`, {
-      method: 'DELETE',
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'x-storage-mode': 'mongodb',
       },
+      body: JSON.stringify({ action: 'delete' }),
     });
 
     if (!response.ok) {

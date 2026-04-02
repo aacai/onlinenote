@@ -83,6 +83,7 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
       content: noteData.content || '',
       category: noteData.category || '4',
       tags: noteData.tags || [],
+      user: noteData.user || 'anonymous',
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -101,7 +102,13 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
       scheduleSync(3000);
       return created;
     } catch (error) {
-      // API 失败时，数据已在待同步队列，下次联网时会自动同步
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      // 主键冲突等数据错误，提示用户
+      if (errorMessage.includes('duplicate') || errorMessage.includes('unique') || errorMessage.includes('pkey')) {
+        alert('创建失败：' + errorMessage);
+        throw error;
+      }
+      // 网络错误，走离线逻辑
       console.log('Note created locally, will sync when online');
       setNotes(prev => deduplicateNotes([newNote, ...prev]));
       setCurrentNote(newNote);

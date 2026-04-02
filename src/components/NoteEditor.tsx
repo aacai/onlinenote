@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useNotes } from '@/contexts/NoteContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Save, Trash2, X, Upload, Download, Paperclip, Check, Maximize2, Minimize2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Save, Trash2, X, Upload, Download, Paperclip, Check, Maximize2, Minimize2, ChevronUp, ChevronDown, Database, HardDrive, Server, Leaf } from 'lucide-react';
+import { getStorageMode, StorageMode } from '@/lib/storageConfig';
 import { api } from '@/lib/api';
 
 const BlockNoteEditor = dynamic(
@@ -23,6 +24,19 @@ interface Attachment {
   url: string;
 }
 
+const getStorageModeInfo = (mode: StorageMode) => {
+  switch (mode) {
+    case 'local':
+      return { icon: HardDrive, label: '本地', color: 'text-gray-500' };
+    case 'supabase':
+      return { icon: Database, label: 'Supabase', color: 'text-green-500' };
+    case 'redis':
+      return { icon: Server, label: 'Redis', color: 'text-red-500' };
+    case 'mongodb':
+      return { icon: Leaf, label: 'MongoDB', color: 'text-green-600' };
+  }
+};
+
 export default function NoteEditor({ onClose, isFullscreen = false, onToggleFullscreen }: NoteEditorProps) {
   const { currentNote, updateNote, deleteNote, categories, uploadFile } = useNotes();
   useTheme();
@@ -37,6 +51,7 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isClosingDialog, setIsClosingDialog] = useState(false);
+  const [storageMode, setStorageMode] = useState<StorageMode>('local');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -79,6 +94,16 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
       loadAttachments(currentNote.id);
     }
   }, [currentNote]);
+
+  // 监听存储模式变化
+  useEffect(() => {
+    const updateStorageMode = () => {
+      setStorageMode(getStorageMode());
+    };
+    updateStorageMode();
+    window.addEventListener('storageModeChange', updateStorageMode);
+    return () => window.removeEventListener('storageModeChange', updateStorageMode);
+  }, []);
 
   // 自动保存函数
   const handleAutoSave = async () => {
@@ -321,6 +346,16 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
             {hasChanges && (
               <span className="text-xs text-orange-500 flex-shrink-0">未保存</span>
             )}
+            {/* 存储模式指示器 */}
+            {(() => {
+              const { icon: Icon, label, color } = getStorageModeInfo(storageMode);
+              return (
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 ${color} text-xs`} title={`存储: ${label}`}>
+                  <Icon size={14} />
+                  <span className="hidden sm:inline">{label}</span>
+                </div>
+              );
+            })()}
             <div className="flex items-center gap-1 flex-shrink-0">
               <select
                 value={category}

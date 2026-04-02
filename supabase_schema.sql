@@ -8,8 +8,9 @@ CREATE TABLE IF NOT EXISTS public.notes (
     content TEXT NOT NULL DEFAULT '',
     category TEXT NOT NULL DEFAULT '4',
     tags TEXT[] DEFAULT '{}',
-    createdAt BIGINT NOT NULL,
-    updatedAt BIGINT NOT NULL
+    "user" TEXT NOT NULL DEFAULT 'anonymous',
+    "createdAt" BIGINT NOT NULL,
+    "updatedAt" BIGINT NOT NULL
 );
 
 -- 创建 categories 表

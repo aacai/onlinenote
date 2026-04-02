@@ -91,6 +91,11 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const logsContainerRef = useRef<HTMLDivElement>(null);
   const userScrolledUpRef = useRef(false);
 
+  // 同步外部存储模式变化
+  useEffect(() => {
+    setSelectedMode(currentMode);
+  }, [currentMode]);
+
   const scrollToBottom = () => {
     const container = logsContainerRef.current;
     if (!container) return;
@@ -158,6 +163,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       updateLogs();
 
       if (!isConnected) {
+        // 连接失败，恢复为当前实际模式
+        setSelectedMode(currentMode);
         return;
       }
     } else if (mode === 'redis') {
@@ -169,6 +176,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       updateLogs();
 
       if (!isConnected) {
+        setSelectedMode(currentMode);
         return;
       }
     } else if (mode === 'mongodb') {
@@ -180,6 +188,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       updateLogs();
 
       if (!isConnected) {
+        setSelectedMode(currentMode);
         return;
       }
     }

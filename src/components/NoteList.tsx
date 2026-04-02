@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNotes } from '@/contexts/NoteContext';
-import { Plus, FileText, Menu, Search, ArrowUpDown, ArrowUp, ArrowDown, Trash2, X, CheckSquare, Square, Loader2 } from 'lucide-react';
+import { Plus, FileText, Menu, Search, ArrowUpDown, ArrowUp, ArrowDown, Trash2, X, CheckSquare, Square, Loader2, Database, HardDrive, Server, Leaf } from 'lucide-react';
+import { getStorageMode, StorageMode } from '@/lib/storageConfig';
 import { api } from '@/lib/api';
 
 type SortOrder = 'desc' | 'asc';
@@ -18,6 +19,19 @@ interface Attachment {
   url: string;
 }
 
+const getStorageModeInfo = (mode: StorageMode) => {
+  switch (mode) {
+    case 'local':
+      return { icon: HardDrive, label: '本地', color: 'text-gray-500' };
+    case 'supabase':
+      return { icon: Database, label: 'Supabase', color: 'text-green-500' };
+    case 'redis':
+      return { icon: Server, label: 'Redis', color: 'text-red-500' };
+    case 'mongodb':
+      return { icon: Leaf, label: 'MongoDB', color: 'text-green-600' };
+  }
+};
+
 export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps) {
   const [mounted, setMounted] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -31,6 +45,7 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
   const [searchLoading, setSearchLoading] = useState(false);
   const [attachmentsMap, setAttachmentsMap] = useState<Map<string, Attachment[]>>(new Map());
   const [localSearchQuery, setLocalSearchQuery] = useState('');
+  const [storageMode, setStorageMode] = useState<StorageMode>('local');
   
   const {
     notes,
@@ -66,6 +81,16 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // 监听存储模式变化
+  useEffect(() => {
+    const updateStorageMode = () => {
+      setStorageMode(getStorageMode());
+    };
+    updateStorageMode();
+    window.addEventListener('storageModeChange', updateStorageMode);
+    return () => window.removeEventListener('storageModeChange', updateStorageMode);
   }, []);
 
   // 加载所有笔记的附件
@@ -335,9 +360,20 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
         >
           <Menu size={20} className="text-gray-600 dark:text-gray-400" />
         </button>
-        <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate flex-1 text-center px-2">
-          笔记列表
-        </span>
+        <div className="flex items-center gap-2 flex-1 justify-center">
+          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+            笔记列表
+          </span>
+          {/* 存储模式指示器 */}
+          {(() => {
+            const { icon: Icon, label, color } = getStorageModeInfo(storageMode);
+            return (
+              <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 ${color} text-xs`} title={`存储: ${label}`}>
+                <Icon size={12} />
+              </div>
+            );
+          })()}
+        </div>
         <button
           onClick={handleCreateNote}
           disabled={isCreating}
@@ -372,6 +408,18 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
                 <X size={16} />
               </button>
             )}
+          </div>
+          {/* 桌面端存储模式指示器 */}
+          <div className="hidden lg:flex">
+            {(() => {
+              const { icon: Icon, label, color } = getStorageModeInfo(storageMode);
+              return (
+                <div className={`flex items-center gap-1 px-2 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 ${color} text-xs`} title={`存储: ${label}`}>
+                  <Icon size={14} />
+                  <span>{label}</span>
+                </div>
+              );
+            })()}
           </div>
           <button
             onClick={handleCreateNote}

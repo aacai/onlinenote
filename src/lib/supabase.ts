@@ -133,25 +133,17 @@ export const supabaseDb = {
   createNote: async (note: Note): Promise<Note> => {
     addConnectionLog('info', '创建笔记...', `ID: ${note.id}`);
     const supabase = createSupabaseClient();
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from('notes')
       .insert(note)
       .select()
       .single();
-    
-    if (error && error.message?.includes('does not exist')) {
-      addConnectionLog('warn', '部分列不存在，移除时间字段后重试');
-      const { createdAt: _c, updatedAt: _u, ...safeNote } = note;
-      const fallback = await supabase.from('notes').insert(safeNote).select().single();
-      data = fallback.data;
-      error = fallback.error;
-    }
-    
+
     if (error) {
       addConnectionLog('error', '创建笔记失败', error.message);
       throw new Error(error.message);
     }
-    
+
     addConnectionLog('success', '笔记创建成功');
     return data;
   },
@@ -160,33 +152,20 @@ export const supabaseDb = {
   updateNote: async (id: string, updates: Partial<Note>): Promise<Note> => {
     addConnectionLog('info', '更新笔记...', `ID: ${id}`);
     const supabase = createSupabaseClient();
-    
+
     const updateData = { ...updates, updatedAt: Date.now() };
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from('notes')
       .update(updateData)
       .eq('id', id)
       .select()
       .single();
-    
-    if (error && error.message?.includes('does not exist')) {
-      addConnectionLog('warn', '时间列不存在，移除后重试');
-      const { createdAt: _c, updatedAt: _u, ...safeUpdates } = updateData;
-      const fallback = await supabase
-        .from('notes')
-        .update(safeUpdates)
-        .eq('id', id)
-        .select()
-        .single();
-      data = fallback.data;
-      error = fallback.error;
-    }
-    
+
     if (error) {
       addConnectionLog('error', '更新笔记失败', error.message);
       throw new Error(error.message);
     }
-    
+
     addConnectionLog('success', '笔记更新成功');
     return data;
   },

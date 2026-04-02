@@ -28,17 +28,24 @@ export async function GET(
   }
 }
 
-export async function DELETE(
+export async function POST(
   request: Request,
   { params }: { params: Promise<{ noteId: string; filename: string }> }
 ) {
   try {
-    fileStorage.init();
-    const { noteId, filename } = await params;
-    
-    fileStorage.deleteAttachment(noteId, filename);
-    
-    return NextResponse.json({ success: true });
+    const body = await request.json();
+    const { action } = body;
+
+    if (action === 'delete') {
+      fileStorage.init();
+      const { noteId, filename } = await params;
+      
+      fileStorage.deleteAttachment(noteId, filename);
+      
+      return NextResponse.json({ success: true });
+    } else {
+      return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    }
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete file' }, { status: 500 });
   }

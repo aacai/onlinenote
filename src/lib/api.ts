@@ -53,9 +53,9 @@ export const api = {
 
   updateNote: async (id: string, updates: Partial<Note>): Promise<Note> => {
     const response = await fetch(`${getApiBase()}/notes/${id}`, {
-      method: 'PUT',
+      method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify(updates),
+      body: JSON.stringify({ action: 'update', ...updates }),
     });
     if (!response.ok) throw new Error('Failed to update note');
     return response.json();
@@ -63,8 +63,9 @@ export const api = {
 
   deleteNote: async (id: string): Promise<void> => {
     const response = await fetch(`${getApiBase()}/notes/${id}`, {
-      method: 'DELETE',
-      headers: getHeaders(false),
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ action: 'delete' }),
     });
     if (!response.ok) throw new Error('Failed to delete note');
   },
@@ -99,8 +100,9 @@ export const api = {
 
   deleteCategory: async (id: string): Promise<void> => {
     const response = await fetch(`${getApiBase()}/categories/${id}`, {
-      method: 'DELETE',
-      headers: getHeaders(false),
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ action: 'delete' }),
     });
     if (!response.ok) throw new Error('Failed to delete category');
   },
@@ -139,8 +141,9 @@ export const api = {
 
   deleteAttachment: async (noteId: string, filename: string): Promise<void> => {
     const response = await fetch(`${getApiBase()}/attachments/${noteId}/${filename}`, {
-      method: 'DELETE',
-      headers: getHeaders(false),
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ action: 'delete' }),
     });
     if (!response.ok) throw new Error('Failed to delete attachment');
   },

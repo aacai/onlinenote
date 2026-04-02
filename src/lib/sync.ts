@@ -237,6 +237,10 @@ export const bidirectionalSync = async (): Promise<SyncResult> => {
   };
 
   try {
+    // 先获取云端现有数据，用于检测重复
+    const remoteNotes = await api.getNotes();
+    const remoteNoteIds = new Set(remoteNotes.map(n => n.id));
+
     // 先处理待上传的变更
     const state = getSyncState();
     const processedIds: string[] = [];
@@ -245,7 +249,13 @@ export const bidirectionalSync = async (): Promise<SyncResult> => {
       try {
         if (change.type === 'create') {
           if (change.entity === 'note') {
-            await api.createNote(change.data as Note);
+            const note = change.data as Note;
+            // 如果云端已存在相同 id，改为更新操作
+            if (remoteNoteIds.has(note.id)) {
+              await api.updateNote(note.id, note);
+            } else {
+              await api.createNote(note);
+            }
           } else {
             const cat = change.data as Category;
             await api.addCategory(cat.name, cat.color);
