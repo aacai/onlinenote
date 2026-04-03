@@ -1,18 +1,27 @@
 import { Note, Category } from '@/types/note';
 import { getStorageMode } from './storageConfig';
 
-// 获取 API 基础 URL，支持客户端和服务器端
+// 判断是否在 Tauri 环境
+const isTauri = () => {
+  if (typeof window === 'undefined') return false;
+  return '__TAURI_INTERNALS__' in window;
+};
+
+// 调用 Tauri 命令
+const invokeTauri = async <T>(cmd: string, args?: Record<string, unknown>): Promise<T> => {
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke<T>(cmd, args);
+};
+
+// 获取 API 基础 URL
 const getApiBase = (): string => {
   if (typeof window === 'undefined') {
-    // 服务器端：使用环境变量或默认值
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    return `${baseUrl}/api`;
+    return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   }
-  // 客户端：使用相对路径
   return '/api';
 };
 
-// 获取请求头，包含存储模式
+// 获取请求头
 const getHeaders = (contentType = true): HeadersInit => {
   const headers: HeadersInit = {};
   if (contentType) {
@@ -24,6 +33,10 @@ const getHeaders = (contentType = true): HeadersInit => {
 
 export const api = {
   getNotes: async (): Promise<Note[]> => {
+    if (isTauri()) {
+      return invokeTauri<Note[]>('get_notes');
+    }
+    
     try {
       const response = await fetch(`${getApiBase()}/notes`, {
         headers: getHeaders(false),
@@ -42,6 +55,20 @@ export const api = {
   },
 
   createNote: async (note: Partial<Note>): Promise<Note> => {
+    if (isTauri()) {
+      const tauriNote: Note = {
+        id: note.id || crypto.randomUUID(),
+        title: note.title || '',
+        content: note.content || '',
+        category_id: note.category_id || null,
+        created_at: note.created_at || new Date().toISOString(),
+        updated_at: note.updated_at || new Date().toISOString(),
+        is_favorite: note.is_favorite || false,
+        is_archived: note.is_archived || false,
+      };
+      return invokeTauri<Note>('create_note', { note: tauriNote });
+    }
+    
     const response = await fetch(`${getApiBase()}/notes`, {
       method: 'POST',
       headers: getHeaders(),
@@ -52,6 +79,10 @@ export const api = {
   },
 
   updateNote: async (id: string, updates: Partial<Note>): Promise<Note> => {
+    if (isTauri()) {
+      return invokeTauri<Note>('update_note', { id, updates });
+    }
+    
     const response = await fetch(`${getApiBase()}/notes/${id}`, {
       method: 'POST',
       headers: getHeaders(),
@@ -62,6 +93,10 @@ export const api = {
   },
 
   deleteNote: async (id: string): Promise<void> => {
+    if (isTauri()) {
+      return invokeTauri<void>('delete_note', { id });
+    }
+    
     const response = await fetch(`${getApiBase()}/notes/${id}`, {
       method: 'POST',
       headers: getHeaders(),
@@ -71,6 +106,10 @@ export const api = {
   },
 
   getCategories: async (): Promise<Category[]> => {
+    if (isTauri()) {
+      return invokeTauri<Category[]>('get_categories');
+    }
+    
     try {
       const response = await fetch(`${getApiBase()}/categories`, {
         headers: getHeaders(false),
@@ -89,6 +128,10 @@ export const api = {
   },
 
   addCategory: async (name: string, color: string): Promise<Category> => {
+    if (isTauri()) {
+      return invokeTauri<Category>('create_category', { name, color });
+    }
+    
     const response = await fetch(`${getApiBase()}/categories`, {
       method: 'POST',
       headers: getHeaders(),
@@ -99,6 +142,10 @@ export const api = {
   },
 
   deleteCategory: async (id: string): Promise<void> => {
+    if (isTauri()) {
+      return invokeTauri<void>('delete_category', { id });
+    }
+    
     const response = await fetch(`${getApiBase()}/categories/${id}`, {
       method: 'POST',
       headers: getHeaders(),
@@ -115,6 +162,7 @@ export const api = {
     size: number;
     type: string;
   }> => {
+    // Tauri 模式下暂不支持文件上传
     const formData = new FormData();
     formData.append('file', file);
     formData.append('noteId', noteId);

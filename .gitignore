@@ -67,3 +67,28 @@ src-tauri/Cargo.lock
 # Tauri build output
 OnlineWebNote.app/
 *.dmg
+*.app
+*.msi
+*.exe
+*.AppImage
+*.deb
+*.rpm
+
+# Tauri Android
+src-tauri/gen/android/
+src-tauri/target/*/
+src-tauri/target/aarch64-linux-android/
+src-tauri/target/x86_64-linux-android/
+src-tauri/target/armv7-linux-androideabi/
+*.apk
+*.aab
+
+# Tauri iOS
+src-tauri/gen/ios/
+*.ipa
+
+# Capacitor (removed, but keeping for reference)
+/android/
+/ios/
+capacitor.config.ts
+capacitor.config.js
