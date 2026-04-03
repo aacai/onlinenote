@@ -60,6 +60,11 @@ export const api = {
         id: note.id || crypto.randomUUID(),
         title: note.title || '',
         content: note.content || '',
+        category: note.category || '',
+        tags: note.tags || [],
+        user: note.user || '',
+        createdAt: note.createdAt || Date.now(),
+        updatedAt: note.updatedAt || Date.now(),
         category_id: note.category_id || null,
         created_at: note.created_at || new Date().toISOString(),
         updated_at: note.updated_at || new Date().toISOString(),
@@ -180,6 +185,10 @@ export const api = {
     filename: string;
     url: string;
   }>> => {
+    if (isTauri()) {
+      return invokeTauri<Array<{ filename: string; url: string }>>('get_attachments', { noteId });
+    }
+    
     const response = await fetch(`${getApiBase()}/attachments/${noteId}`, {
       headers: getHeaders(false),
     });
@@ -188,6 +197,10 @@ export const api = {
   },
 
   deleteAttachment: async (noteId: string, filename: string): Promise<void> => {
+    if (isTauri()) {
+      return invokeTauri<void>('delete_attachment', { noteId, filename });
+    }
+    
     const response = await fetch(`${getApiBase()}/attachments/${noteId}/${filename}`, {
       method: 'POST',
       headers: getHeaders(),

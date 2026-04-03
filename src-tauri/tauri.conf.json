@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.onlinenote.app",
   "build": {
-    "frontendDist": "http://localhost:3000",
+    "frontendDist": "../dist",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "echo 'Skipping build, using pre-built resources'"
+    "beforeBuildCommand": "npm run build"
   },
   "app": {
     "windows": [
@@ -28,7 +28,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["dmg", "app"],
+    "targets": "all",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -36,23 +36,8 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "macOS": {
-      "frameworks": [],
-      "minimumSystemVersion": "10.13",
-      "dmg": {
-        "appPosition": {
-          "x": 180,
-          "y": 170
-        },
-        "applicationFolderPosition": {
-          "x": 480,
-          "y": 170
-        },
-        "windowSize": {
-          "height": 400,
-          "width": 660
-        }
-      }
+    "android": {
+      "minSdkVersion": 24
     },
     "resources": [
       "nodejs/**/*",

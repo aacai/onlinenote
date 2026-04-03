@@ -87,7 +87,8 @@ src-tauri/target/armv7-linux-androideabi/
 src-tauri/gen/ios/
 *.ipa
 
-# Capacitor (removed, but keeping for reference)
+/dist/
+/out/
 /android/
 /ios/
 capacitor.config.ts

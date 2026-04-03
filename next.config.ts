@@ -7,9 +7,7 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['@uiw/react-md-editor'],
   },
-  // Capacitor 需要静态导出
-  output: 'export',
-  distDir: 'out',
+  distDir: 'dist',
 };
 
 export default nextConfig;

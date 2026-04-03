@@ -73,6 +73,56 @@ fn write_categories(app: &tauri::AppHandle, categories: &[Category]) -> Result<(
     Ok(())
 }
 
+fn get_attachments_dir(app: &tauri::AppHandle, note_id: &str) -> PathBuf {
+    let data_dir = get_data_dir(app);
+    data_dir.join("attachments").join(note_id)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttachmentInfo {
+    pub filename: String,
+    pub url: String,
+}
+
+fn read_attachments(app: &tauri::AppHandle, note_id: &str) -> Vec<AttachmentInfo> {
+    let attachments_dir = get_attachments_dir(app, note_id);
+    
+    if let Ok(entries) = fs::read_dir(&attachments_dir) {
+        entries
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| entry.path().is_file())
+            .filter_map(|entry| {
+                let filename = entry.file_name().to_string_lossy().to_string();
+                Some(AttachmentInfo {
+                    filename: filename.clone(),
+                    url: format!("file://{}", entry.path().display()),
+                })
+            })
+            .collect()
+    } else {
+        Vec::new()
+    }
+}
+
+fn save_attachment(app: &tauri::AppHandle, note_id: &str, filename: &str, data: &[u8]) -> Result<(), String> {
+    let attachments_dir = get_attachments_dir(app, note_id);
+    fs::create_dir_all(&attachments_dir).map_err(|e| e.to_string())?;
+    
+    let file_path = attachments_dir.join(filename);
+    fs::write(file_path, data).map_err(|e| e.to_string())
+}
+
+fn delete_attachment(app: &tauri::AppHandle, note_id: &str, filename: &str) -> Result<(), String> {
+    let attachments_dir = get_attachments_dir(app, note_id);
+    let file_path = attachments_dir.join(filename);
+    
+    if file_path.exists() {
+        fs::remove_file(file_path).map_err(|e| e.to_string())
+    } else {
+        Err("Attachment not found".to_string())
+    }
+}
+
 #[tauri::command]
 fn get_notes(app: tauri::AppHandle) -> Result<Vec<Note>, String> {
     Ok(read_notes(&app))
@@ -134,35 +184,18 @@ fn delete_category(app: tauri::AppHandle, id: String) -> Result<(), String> {
     write_categories(&app, &categories)
 }
 
+#[tauri::command]
+fn get_attachments(app: tauri::AppHandle, note_id: String) -> Result<Vec<AttachmentInfo>, String> {
+    Ok(read_attachments(&app, &note_id))
+}
+
+#[tauri::command]
+fn delete_attachment(app: tauri::AppHandle, note_id: String, filename: String) -> Result<(), String> {
+    delete_attachment(&app, &note_id, &filename)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // 启动 Next.js 服务（仅开发模式）
-    #[cfg(debug_assertions)]
-    {
-        use std::process::{Command, Stdio};
-        use std::thread;
-        use std::time::Duration;
-        
-        thread::spawn(move || {
-            thread::sleep(Duration::from_millis(500));
-            
-            let mut cmd = Command::new("npm");
-            cmd.args(["run", "dev"]);
-            cmd.current_dir("/Users/mac/Documents/trae_projects/onlinenote");
-            
-            let mut child = cmd
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn()
-                .expect("Failed to start Next.js server");
-            
-            thread::sleep(Duration::from_secs(3));
-            let _ = child.wait();
-        });
-        
-        thread::sleep(Duration::from_secs(2));
-    }
-    
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::default()
             .level(log::LevelFilter::Info)
@@ -174,7 +207,9 @@ pub fn run() {
             delete_note,
             get_categories,
             create_category,
-            delete_category
+            delete_category,
+            get_attachments,
+            delete_attachment
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
