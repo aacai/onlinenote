@@ -112,7 +112,7 @@ fn save_attachment(app: &tauri::AppHandle, note_id: &str, filename: &str, data: 
     fs::write(file_path, data).map_err(|e| e.to_string())
 }
 
-fn delete_attachment(app: &tauri::AppHandle, note_id: &str, filename: &str) -> Result<(), String> {
+fn delete_attachment_internal(app: &tauri::AppHandle, note_id: &str, filename: &str) -> Result<(), String> {
     let attachments_dir = get_attachments_dir(app, note_id);
     let file_path = attachments_dir.join(filename);
     
@@ -191,7 +191,7 @@ fn get_attachments(app: tauri::AppHandle, note_id: String) -> Result<Vec<Attachm
 
 #[tauri::command]
 fn delete_attachment(app: tauri::AppHandle, note_id: String, filename: String) -> Result<(), String> {
-    delete_attachment(&app, &note_id, &filename)
+    delete_attachment_internal(&app, &note_id, &filename)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

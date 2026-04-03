@@ -38,10 +38,6 @@
     ],
     "android": {
       "minSdkVersion": 24
-    },
-    "resources": [
-      "nodejs/**/*",
-      "resources/app/**/*"
-    ]
+    }
   }
 }

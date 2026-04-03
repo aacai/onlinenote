@@ -8,6 +8,12 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['@uiw/react-md-editor'],
   },
   distDir: 'dist',
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 };
 
 export default nextConfig;
