@@ -8,8 +8,8 @@ import { Save, Trash2, X, Upload, Download, Paperclip, Check, Maximize2, Minimiz
 import { getStorageMode, StorageMode } from '@/lib/storageConfig';
 import { api } from '@/lib/api';
 
-const BlockNoteEditor = dynamic(
-  () => import('./BlockNoteEditor').then((mod) => mod.default),
+const LexicalEditor = dynamic(
+  () => import('./LexicalEditor').then((mod) => mod.default),
   {
     ssr: false,
     loading: () => (
@@ -128,14 +128,19 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
   useEffect(() => { contentRef.current = content; }, [content]);
   useEffect(() => { categoryRef.current = category; }, [category]);
 
+  // 保存当前笔记ID的ref，用于验证
+  const currentNoteIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    currentNoteIdRef.current = currentNote?.id ?? null;
+  }, [currentNote]);
+
   // 自动保存函数 - 使用 ref 获取最新值
-  const handleAutoSave = async () => {
-    if (!currentNote || isSaving) return;
+  const handleAutoSave = useCallback(async (noteId: string) => {
+    if (isSaving) return;
 
     try {
       setIsSaving(true);
-      // 使用 ref 获取最新值，避免闭包问题
-      await updateNote(currentNote.id, {
+      await updateNote(noteId, {
         title: titleRef.current,
         content: contentRef.current,
         category: categoryRef.current
@@ -148,25 +153,33 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [isSaving, updateNote]);
 
   // 自动保存 - 使用 ref 避免依赖问题
   const handleAutoSaveRef = useRef(handleAutoSave);
   handleAutoSaveRef.current = handleAutoSave;
 
   useEffect(() => {
-    if (currentNote && hasChanges) {
-      // 清除之前的定时器
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-      }
+    // 笔记切换时清除之前的定时器
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
 
-      // 记录当前内容哈希
+    if (currentNote && hasChanges) {
+      // 记录当前笔记ID和内容哈希
+      const noteIdAtStart = currentNote.id;
       const currentHash = computeHash(title, content, category);
       contentHashRef.current = currentHash;
 
       // 3秒后自动保存（如果内容非空且未变化）
       autoSaveTimerRef.current = setTimeout(() => {
+        // 关键：验证当前笔记ID是否与定时器创建时一致
+        if (currentNoteIdRef.current !== noteIdAtStart) {
+          console.log('Note changed during debounce, skipping auto-save');
+          return;
+        }
+
         const trimmedContent = contentRef.current.trim();
         const trimmedTitle = titleRef.current.trim();
 
@@ -183,14 +196,15 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
           return;
         }
 
-        // 执行保存
-        handleAutoSaveRef.current();
+        // 执行保存，传入创建定时器时的笔记ID
+        handleAutoSaveRef.current(noteIdAtStart);
       }, 3000);
     }
 
     return () => {
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
       }
     };
   }, [title, content, category, hasChanges, currentNote]);
@@ -454,7 +468,7 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
 
       <div className="flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0">
-          <BlockNoteEditor
+          <LexicalEditor
             content={content}
             onChange={handleContentChange}
           />
