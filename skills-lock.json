@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "skills": {
+    "auto-updater": {
+      "source": "teylersf/openclaw-auto-updater",
+      "sourceType": "github",
+      "computedHash": "d58bad5838264fcb44ae2da5e984400b3519cf82c814d504e573c3285a8db1bc"
+    },
+    "gh-cli": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "cbe644b0c6760ae2a1eaafa39133920d889331327065d92a131675a665273e56"
+    },
+    "nextjs-expert": {
+      "source": "oimiragieo/agent-studio",
+      "sourceType": "github",
+      "computedHash": "00aee982f43471605c3f6c21e6690e4a1ead17fb4cebcff28394bb06e6a8b6e1"
+    },
+    "nextjs16-skills": {
+      "source": "gocallum/nextjs16-agent-skills",
+      "sourceType": "github",
+      "computedHash": "5c397757268a55b69b99e8d40c7c454adaf48a12acafd91f262f2cb16128880d"
+    }
+  }
+}
