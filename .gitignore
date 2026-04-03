@@ -74,8 +74,7 @@ OnlineWebNote.app/
 *.deb
 *.rpm
 
-# Tauri Android
-src-tauri/gen/android/
+# Tauri Android build output
 src-tauri/target/*/
 src-tauri/target/aarch64-linux-android/
 src-tauri/target/x86_64-linux-android/
