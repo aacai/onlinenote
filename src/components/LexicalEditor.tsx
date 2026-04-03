@@ -11,6 +11,7 @@ import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
+import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
 import {
   $createParagraphNode,
   $createTextNode,
@@ -28,7 +29,10 @@ import {
   $setSelection,
   ParagraphNode,
   ElementNode,
+  PASTE_COMMAND,
 } from 'lexical';
+import { $convertFromMarkdownString, $convertToMarkdownString } from '@lexical/markdown';
+import { TRANSFORMERS } from '@lexical/markdown';
 import { LinkNode, AutoLinkNode } from '@lexical/link';
 import { ListNode, ListItemNode } from '@lexical/list';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
@@ -126,6 +130,62 @@ function $getNearestBlockElementAncestorOrThrow(node: any): ElementNode {
     parent = parent.getParent();
   }
   throw new Error('Expected node to have a block element ancestor');
+}
+
+// Markdown 粘贴处理插件
+function MarkdownPastePlugin() {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    const removeListener = editor.registerCommand(
+      PASTE_COMMAND,
+      (event: ClipboardEvent) => {
+        const clipboardData = event.clipboardData;
+        if (!clipboardData) return false;
+
+        // 优先尝试获取 HTML 格式
+        const html = clipboardData.getData('text/html');
+        const text = clipboardData.getData('text/plain');
+
+        // 如果文本看起来像 Markdown（包含 # * - ` 等标记），尝试作为 Markdown 解析
+        const markdownPatterns = [
+          /^#{1,6}\s/m,           // 标题
+          /^\s*[-*+]\s/m,        // 列表
+          /^\s*\d+\.\s/m,        // 有序列表
+          /\*\*.*?\*\*/,         // 粗体
+          /\*.*?\*/,             // 斜体
+          /`{1,3}[^`]+`{1,3}/,   // 行内代码/代码块
+          /^\s*```/m,            // 代码块
+          /^\[.*?\]\(.*?\)/m,    // 链接
+          /^>\s/m,               // 引用
+        ];
+
+        const looksLikeMarkdown = markdownPatterns.some(pattern => pattern.test(text));
+
+        if (looksLikeMarkdown && !html) {
+          event.preventDefault();
+          editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              $convertFromMarkdownString(text, TRANSFORMERS, selection);
+            } else {
+              $convertFromMarkdownString(text, TRANSFORMERS);
+            }
+          });
+          return true;
+        }
+
+        return false;
+      },
+      COMMAND_PRIORITY_LOW
+    );
+
+    return () => {
+      removeListener();
+    };
+  }, [editor]);
+
+  return null;
 }
 
 // 回车键处理插件 - 修复换行问题
@@ -415,6 +475,8 @@ export default function LexicalEditor({
         <AutoFocusPlugin />
         <ContentUpdatePlugin content={content} />
         <EnterKeyPlugin />
+        <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
+        <MarkdownPastePlugin />
       </div>
       <style jsx global>{`
         .editor-paragraph {
