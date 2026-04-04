@@ -12,6 +12,7 @@ interface NoteContextType {
   currentNote: Note | null;
   searchQuery: string;
   selectedCategory: string | null;
+  isLoading: boolean;
   createNote: (note: Partial<Note>) => Promise<Note>;
   updateNote: (id: string, updates: Partial<Note>) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
@@ -41,6 +42,7 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // 使用 useSyncExternalStore 检测组件是否已挂载（React 19 推荐方式）
   const mounted = useSyncExternalStore(
@@ -51,6 +53,7 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
 
   const refreshNotes = useCallback(async () => {
     try {
+      setIsLoading(true);
       const [notesData, categoriesData] = await Promise.all([
         api.getNotes(),
         api.getCategories(),
@@ -59,6 +62,8 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
       setCategories(deduplicateNotes(categoriesData));
     } catch (error) {
       console.error('Failed to fetch data:', error);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -197,6 +202,7 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
         currentNote,
         searchQuery,
         selectedCategory,
+        isLoading,
         createNote,
         updateNote,
         deleteNote,

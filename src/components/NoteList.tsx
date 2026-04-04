@@ -5,6 +5,7 @@ import { useNotes } from '@/contexts/NoteContext';
 import { Plus, FileText, Menu, Search, ArrowUpDown, ArrowUp, ArrowDown, Trash2, X, CheckSquare, Square, Loader2, Database, HardDrive, Server, Leaf } from 'lucide-react';
 import { getStorageMode, StorageMode } from '@/lib/storageConfig';
 import { api } from '@/lib/api';
+import { NoteListSkeleton } from './Skeleton';
 
 type SortOrder = 'desc' | 'asc';
 type SortField = 'updatedAt' | 'createdAt' | 'title';
@@ -52,6 +53,7 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
     currentNote,
     searchQuery,
     selectedCategory,
+    isLoading,
     selectNote,
     createNote,
     setSearchQuery,
@@ -520,7 +522,9 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
 
       {/* 笔记列表 */}
       <div className="flex-1 overflow-y-auto">
-        {filteredAndSortedNotes.length === 0 ? (
+        {isLoading ? (
+          <NoteListSkeleton count={5} />
+        ) : filteredAndSortedNotes.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 p-4">
             <FileText size={40} className="mb-3 opacity-50" />
             <p className="text-sm sm:text-base">
@@ -538,11 +542,16 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
           </div>
         ) : (
           <div className="p-2 space-y-2">
-            {filteredAndSortedNotes.map(note => (
+            {filteredAndSortedNotes.map((note, index) => (
               <div
                 key={note.id}
                 onClick={() => handleSelectNote(note.id)}
-                className={`w-full text-left p-3 sm:p-4 rounded-lg transition-all min-h-[64px] sm:min-h-[72px] touch-manipulation cursor-pointer ${
+                style={{
+                  opacity: 0,
+                  animation: 'fadeIn 0.3s ease-in-out forwards',
+                  animationDelay: `${index * 0.05}s`
+                }}
+                className={`w-full text-left p-3 sm:p-4 rounded-lg transition-all duration-300 ease-out min-h-[64px] sm:min-h-[72px] touch-manipulation cursor-pointer hover:scale-[1.02] hover:translate-x-1 ${
                   currentNote?.id === note.id && !isBatchMode
                     ? 'bg-blue-100 dark:bg-blue-900 border-2 border-blue-500'
                     : selectedNotes.has(note.id) && isBatchMode
