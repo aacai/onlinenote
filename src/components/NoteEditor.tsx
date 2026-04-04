@@ -56,6 +56,7 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [isAttachmentsExpanded, setIsAttachmentsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isClosingDialog, setIsClosingDialog] = useState(false);
   const [storageMode, setStorageMode] = useState<StorageMode>('local');
@@ -146,8 +147,7 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
         category: categoryRef.current
       });
       setHasChanges(false);
-      setUploadSuccess(true);
-      setTimeout(() => setUploadSuccess(false), 2000);
+      setLastSavedAt(new Date());
     } catch (error) {
       console.error('Auto save failed:', error);
     } finally {
@@ -239,6 +239,7 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
         category: categoryRef.current
       });
       setHasChanges(false);
+      setLastSavedAt(new Date());
       setUploadSuccess(true);
       setTimeout(() => setUploadSuccess(false), 2000);
     } catch (error) {
@@ -471,12 +472,9 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
           <LexicalEditor
             content={content}
             onChange={handleContentChange}
+            saveStatus={isSaving ? 'saving' : hasChanges ? 'unsaved' : 'saved'}
+            lastSavedAt={lastSavedAt}
           />
-        </div>
-        <div className="px-4 py-1.5 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            支持 <a href="https://markdownguide.org/basic-syntax/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Markdown 语法</a> · 输入 <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300 font-mono text-[10px]">/</kbd> 打开命令菜单
-          </p>
         </div>
       </div>
 

@@ -27,26 +27,65 @@ import {
   $isElementNode,
   $createRangeSelection,
   $setSelection,
-  ParagraphNode,
   ElementNode,
   PASTE_COMMAND,
+  UNDO_COMMAND,
+  REDO_COMMAND,
+  FORMAT_TEXT_COMMAND,
+  LexicalNode,
+  LexicalEditor as LexicalEditorType,
 } from 'lexical';
-import { $convertFromMarkdownString, $convertToMarkdownString } from '@lexical/markdown';
+import { $createListNode, $createListItemNode, $isListNode } from '@lexical/list';
+import { TOGGLE_LINK_COMMAND } from '@lexical/link';
+import { $getNearestNodeOfType, mergeRegister } from '@lexical/utils';
+import {
+  $createHeadingNode,
+  $createQuoteNode,
+  $isHeadingNode,
+  $isQuoteNode,
+  HeadingTagType,
+} from '@lexical/rich-text';
+import {
+  $createCodeNode,
+  $isCodeNode,
+} from '@lexical/code';
+import {
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  Code,
+  Heading1,
+  Heading2,
+  Heading3,
+  List,
+  ListOrdered,
+  Quote,
+  Code2,
+  Link,
+  Minus,
+  Undo,
+  Redo,
+} from 'lucide-react';
+import { $convertFromMarkdownString } from '@lexical/markdown';
 import { TRANSFORMERS } from '@lexical/markdown';
 import { LinkNode, AutoLinkNode } from '@lexical/link';
 import { ListNode, ListItemNode } from '@lexical/list';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
+import { CodeNode, CodeHighlightNode } from '@lexical/code';
 import { useTheme } from '@/contexts/ThemeContext';
 
 interface LexicalEditorProps {
   content: string;
   onChange: (content: string) => void;
   editable?: boolean;
+  saveStatus?: 'saved' | 'saving' | 'unsaved';
+  lastSavedAt?: Date | null;
 }
 
 // 将纯文本转换为编辑器状态
 const textToEditorState = (text: string) => {
-  return (editor: Parameters<Parameters<typeof useLexicalComposerContext>[0]['update']>[0] extends infer R ? R : never) => {
+  return () => {
     const root = $getRoot();
     root.clear();
 
@@ -91,7 +130,7 @@ function ContentUpdatePlugin({ content }: { content: string }) {
 
   useEffect(() => {
     // 订阅编辑器更新，标记是否为外部更新
-    const unregisterUpdateListener = editor.registerUpdateListener(({ editorState, prevEditorState }) => {
+    const unregisterUpdateListener = editor.registerUpdateListener(({ editorState }) => {
       // 如果编辑器状态变化，且不是由外部 content 变化引起的，则更新 prevContentRef
       if (!isExternalUpdateRef.current) {
         const text = editorStateToText(editorState);
@@ -112,7 +151,7 @@ function ContentUpdatePlugin({ content }: { content: string }) {
       prevContentRef.current = content;
       isExternalUpdateRef.current = true;
       editor.update(() => {
-        textToEditorState(content)(editor);
+        textToEditorState(content)();
       });
     }
   }, [editor, content]);
@@ -121,8 +160,8 @@ function ContentUpdatePlugin({ content }: { content: string }) {
 }
 
 // 获取最近的块级祖先节点
-function $getNearestBlockElementAncestorOrThrow(node: any): ElementNode {
-  let parent = node;
+function $getNearestBlockElementAncestorOrThrow(node: LexicalNode): ElementNode {
+  let parent: LexicalNode | null = node;
   while (parent !== null && !$isRootOrShadowRoot(parent)) {
     if ($isElementNode(parent)) {
       return parent;
@@ -165,12 +204,7 @@ function MarkdownPastePlugin() {
         if (looksLikeMarkdown && !html) {
           event.preventDefault();
           editor.update(() => {
-            const selection = $getSelection();
-            if ($isRangeSelection(selection)) {
-              $convertFromMarkdownString(text, TRANSFORMERS, selection);
-            } else {
-              $convertFromMarkdownString(text, TRANSFORMERS);
-            }
+            $convertFromMarkdownString(text, TRANSFORMERS);
           });
           return true;
         }
@@ -186,6 +220,382 @@ function MarkdownPastePlugin() {
   }, [editor]);
 
   return null;
+}
+
+function ToolbarDivider() {
+  return <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" />;
+}
+
+function ToolbarButton({ 
+  onClick, 
+  isActive, 
+  disabled, 
+  children, 
+  title 
+}: { 
+  onClick: () => void; 
+  isActive?: boolean; 
+  disabled?: boolean;
+  children: React.ReactNode; 
+  title: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`p-1.5 rounded transition-colors ${
+        isActive 
+          ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' 
+          : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+      } disabled:opacity-50 disabled:cursor-not-allowed`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ToolbarPlugin() {
+  const [editor] = useLexicalComposerContext();
+  const [isBold, setIsBold] = React.useState(false);
+  const [isItalic, setIsItalic] = React.useState(false);
+  const [isUnderline, setIsUnderline] = React.useState(false);
+  const [isStrikethrough, setIsStrikethrough] = React.useState(false);
+  const [isCode, setIsCode] = React.useState(false);
+  const [blockType, setBlockType] = React.useState<string>('paragraph');
+
+  const updateToolbar = React.useCallback(() => {
+    const selection = $getSelection();
+    if (!$isRangeSelection(selection)) {
+      return;
+    }
+
+    setIsBold(selection.hasFormat('bold'));
+    setIsItalic(selection.hasFormat('italic'));
+    setIsUnderline(selection.hasFormat('underline'));
+    setIsStrikethrough(selection.hasFormat('strikethrough'));
+    setIsCode(selection.hasFormat('code'));
+
+    const anchorNode = selection.anchor.getNode();
+    let element = null;
+    
+    try {
+      element = anchorNode.getTopLevelElement();
+    } catch {
+      // Ignore if we can't get top level element
+    }
+    
+    if (!element) {
+      setBlockType('paragraph');
+      return;
+    }
+    
+    if ($isHeadingNode(element)) {
+      setBlockType(element.getTag());
+    } else if ($isListNode(element)) {
+      setBlockType(element.getListType());
+    } else if ($isQuoteNode(element)) {
+      setBlockType('quote');
+    } else if ($isCodeNode(element)) {
+      setBlockType('code');
+    } else {
+      setBlockType('paragraph');
+    }
+  }, []);
+
+  React.useEffect(() => {
+    return mergeRegister(
+      editor.registerUpdateListener(({ editorState }) => {
+        editorState.read(() => {
+          updateToolbar();
+        });
+      })
+    );
+  }, [editor, updateToolbar]);
+
+  const formatHeading = (headingType: HeadingTagType) => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return;
+
+      $getNearestNodeOfType(selection.anchor.getNode(), HeadingNode)?.remove();
+
+      const headingNode = $createHeadingNode(headingType);
+      selection.insertNodes([headingNode]);
+    });
+  };
+
+  const formatQuote = () => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return;
+
+      const quote = $createQuoteNode();
+      selection.insertNodes([quote]);
+    });
+  };
+
+  const formatCode = () => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return;
+
+      const code = $createCodeNode();
+      selection.insertNodes([code]);
+    });
+  };
+
+  const formatList = (listType: 'bullet' | 'number' | 'check') => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return;
+
+      const list = $createListNode(listType);
+      const listItem = $createListItemNode();
+      list.append(listItem);
+      selection.insertNodes([list]);
+    });
+  };
+
+  const insertLink = () => {
+    const url = prompt('输入链接地址:', 'https://');
+    if (url) {
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, { url, target: '_blank' });
+    }
+  };
+
+  const insertDivider = () => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return;
+
+      const divider = $createParagraphNode();
+      divider.append($createTextNode('---'));
+      selection.insertNodes([divider, $createParagraphNode()]);
+    });
+  };
+
+  return (
+    <div className="flex items-center gap-0.5 p-1.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-t-lg flex-wrap">
+      <ToolbarButton onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)} title="撤销 (Ctrl+Z)">
+        <Undo size={16} />
+      </ToolbarButton>
+      <ToolbarButton onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)} title="重做 (Ctrl+Y)">
+        <Redo size={16} />
+      </ToolbarButton>
+      
+      <ToolbarDivider />
+      
+      <ToolbarButton 
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')} 
+        isActive={isBold}
+        title="粗体 (Ctrl+B)"
+      >
+        <Bold size={16} />
+      </ToolbarButton>
+      <ToolbarButton 
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')} 
+        isActive={isItalic}
+        title="斜体 (Ctrl+I)"
+      >
+        <Italic size={16} />
+      </ToolbarButton>
+      <ToolbarButton 
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline')} 
+        isActive={isUnderline}
+        title="下划线 (Ctrl+U)"
+      >
+        <Underline size={16} />
+      </ToolbarButton>
+      <ToolbarButton 
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')} 
+        isActive={isStrikethrough}
+        title="删除线"
+      >
+        <Strikethrough size={16} />
+      </ToolbarButton>
+      <ToolbarButton 
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')} 
+        isActive={isCode}
+        title="行内代码"
+      >
+        <Code size={16} />
+      </ToolbarButton>
+
+      <ToolbarDivider />
+
+      <ToolbarButton 
+        onClick={() => formatHeading('h1')} 
+        isActive={blockType === 'h1'}
+        title="标题 1"
+      >
+        <Heading1 size={16} />
+      </ToolbarButton>
+      <ToolbarButton 
+        onClick={() => formatHeading('h2')} 
+        isActive={blockType === 'h2'}
+        title="标题 2"
+      >
+        <Heading2 size={16} />
+      </ToolbarButton>
+      <ToolbarButton 
+        onClick={() => formatHeading('h3')} 
+        isActive={blockType === 'h3'}
+        title="标题 3"
+      >
+        <Heading3 size={16} />
+      </ToolbarButton>
+
+      <ToolbarDivider />
+
+      <ToolbarButton 
+        onClick={() => formatList('bullet')} 
+        isActive={blockType === 'bullet'}
+        title="无序列表"
+      >
+        <List size={16} />
+      </ToolbarButton>
+      <ToolbarButton 
+        onClick={() => formatList('number')} 
+        isActive={blockType === 'number'}
+        title="有序列表"
+      >
+        <ListOrdered size={16} />
+      </ToolbarButton>
+      <ToolbarButton 
+        onClick={formatQuote} 
+        isActive={blockType === 'quote'}
+        title="引用"
+      >
+        <Quote size={16} />
+      </ToolbarButton>
+      <ToolbarButton 
+        onClick={formatCode} 
+        isActive={blockType === 'code'}
+        title="代码块"
+      >
+        <Code2 size={16} />
+      </ToolbarButton>
+
+      <ToolbarDivider />
+
+      <ToolbarButton onClick={insertLink} title="插入链接">
+        <Link size={16} />
+      </ToolbarButton>
+      <ToolbarButton onClick={insertDivider} title="分割线">
+        <Minus size={16} />
+      </ToolbarButton>
+    </div>
+  );
+}
+
+function StatusBarPlugin({ 
+  saveStatus = 'saved', 
+  lastSavedAt 
+}: { 
+  saveStatus?: 'saved' | 'saving' | 'unsaved';
+  lastSavedAt?: Date | null;
+}) {
+  const [editor] = useLexicalComposerContext();
+  const [stats, setStats] = React.useState({ chars: 0, words: 0, lines: 0 });
+  const [cursorPos, setCursorPos] = React.useState({ line: 1, col: 1 });
+
+  const updateStats = React.useCallback(() => {
+    const text = editorStateToText(editor.getEditorState());
+    
+    const chars = text.length;
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const lines = text.split('\n').length;
+    
+    setStats({ chars, words, lines });
+
+    const selection = $getSelection();
+    if ($isRangeSelection(selection)) {
+      const anchor = selection.anchor;
+      const root = $getRoot();
+      const allText = root.getTextContent();
+      const allLines = allText.split('\n');
+      
+      let charCount = 0;
+      let lineNum = 1;
+      
+      for (let i = 0; i < allLines.length; i++) {
+        const lineLength = allLines[i].length;
+        if (charCount + lineLength >= anchor.offset + (i > 0 ? charCount : 0)) {
+          lineNum = i + 1;
+          break;
+        }
+        charCount += lineLength + 1;
+      }
+      
+      const node = anchor.getNode();
+      const nodeText = node.getTextContent();
+      const col = anchor.offset + 1;
+      
+      setCursorPos({ line: lineNum, col });
+    }
+  }, [editor]);
+
+  React.useEffect(() => {
+    return editor.registerUpdateListener(() => {
+      editor.getEditorState().read(() => {
+        updateStats();
+      });
+    });
+  }, [editor, updateStats]);
+
+  React.useEffect(() => {
+    editor.getEditorState().read(() => {
+      updateStats();
+    });
+  }, [editor, updateStats]);
+
+  const formatTime = (date: Date | null) => {
+    if (!date) return '';
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getStatusText = () => {
+    switch (saveStatus) {
+      case 'saving':
+        return '保存中...';
+      case 'unsaved':
+        return '未保存';
+      case 'saved':
+      default:
+        return lastSavedAt ? `已保存 · ${formatTime(lastSavedAt)}` : '已保存';
+    }
+  };
+
+  const getStatusColor = () => {
+    switch (saveStatus) {
+      case 'saving':
+        return 'text-yellow-500';
+      case 'unsaved':
+        return 'text-orange-500';
+      case 'saved':
+      default:
+        return 'text-green-500';
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between px-3 py-1 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+      <div className="flex items-center gap-3">
+        <span>字数: {stats.words}</span>
+        <span className="text-gray-300 dark:text-gray-600">|</span>
+        <span>字符: {stats.chars}</span>
+        <span className="text-gray-300 dark:text-gray-600">|</span>
+        <span>行 {cursorPos.line}, 列 {cursorPos.col}</span>
+      </div>
+      <div className={`flex items-center gap-1 ${getStatusColor()}`}>
+        {saveStatus === 'saving' && (
+          <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+        )}
+        <span>{getStatusText()}</span>
+      </div>
+    </div>
+  );
 }
 
 // 回车键处理插件 - 修复换行问题
@@ -247,16 +657,14 @@ function EnterKeyPlugin() {
           const anchorOffset = anchor.offset;
 
           // 找到光标所在的文本节点在块中的位置
-          let beforeNodes: any[] = [];
-          let afterNodes: any[] = [];
+          const beforeNodes: LexicalNode[] = [];
+          const afterNodes: LexicalNode[] = [];
           let foundAnchor = false;
-          let anchorTextIndex = 0;
 
           for (const child of children) {
             if (!foundAnchor) {
               if (child.getKey() === anchorKey) {
                 foundAnchor = true;
-                anchorTextIndex = anchorOffset;
                 // 分割这个文本节点
                 if ($isTextNode(child)) {
                   const text = child.getTextContent();
@@ -330,7 +738,7 @@ function EnterKeyPlugin() {
 }
 
 // 主题配置
-const getTheme = (isDark: boolean) => ({
+const getTheme = (_isDark: boolean) => ({
   ltr: 'ltr',
   rtl: 'rtl',
   placeholder: 'editor-placeholder',
@@ -403,6 +811,8 @@ export default function LexicalEditor({
   content,
   onChange,
   editable = true,
+  saveStatus = 'saved',
+  lastSavedAt = null,
 }: LexicalEditorProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -435,6 +845,8 @@ export default function LexicalEditor({
       QuoteNode,
       LinkNode,
       AutoLinkNode,
+      CodeNode,
+      CodeHighlightNode,
     ],
     editorState: textToEditorState(content),
     editable,
@@ -451,6 +863,7 @@ export default function LexicalEditor({
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <div className="h-full flex flex-col relative">
+        <ToolbarPlugin />
         <div className="flex-1 overflow-y-auto">
           <RichTextPlugin
             contentEditable={
@@ -461,7 +874,7 @@ export default function LexicalEditor({
               />
             }
             placeholder={
-              <div className="absolute top-4 left-4 text-gray-400 pointer-events-none select-none">
+              <div className="absolute top-16 left-4 text-gray-400 pointer-events-none select-none">
                 开始输入...
               </div>
             }
@@ -477,6 +890,7 @@ export default function LexicalEditor({
         <EnterKeyPlugin />
         <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
         <MarkdownPastePlugin />
+        <StatusBarPlugin saveStatus={saveStatus} lastSavedAt={lastSavedAt} />
       </div>
       <style jsx global>{`
         .editor-paragraph {
