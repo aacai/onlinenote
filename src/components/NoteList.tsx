@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNotes } from '@/contexts/NoteContext';
 import { Plus, FileText, Menu, Search, ArrowUpDown, ArrowUp, ArrowDown, Trash2, X, CheckSquare, Square, Loader2, Database, HardDrive, Server, Leaf } from 'lucide-react';
 import { getStorageMode, StorageMode } from '@/lib/storageConfig';
@@ -61,10 +61,7 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
     categories,
   } = useNotes();
 
-  // 防抖搜索 - 使用 ref 避免依赖问题
-  const localSearchQueryRef = React.useRef(localSearchQuery);
-  localSearchQueryRef.current = localSearchQuery;
-
+  // 防抖搜索
   useEffect(() => {
     setSearchLoading(true);
     const timer = setTimeout(() => {
@@ -72,13 +69,16 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
       setSearchLoading(false);
     }, 300);
     return () => clearTimeout(timer);
-  }, [localSearchQuery]);
+  }, [localSearchQuery, setSearchQuery]);
 
-  // 同步外部搜索词
+  // 同步外部搜索词 - 只在searchQuery变化时同步，避免循环依赖
   useEffect(() => {
-    if (searchQuery !== localSearchQuery) {
-      setLocalSearchQuery(searchQuery);
-    }
+    setLocalSearchQuery(prev => {
+      if (searchQuery !== prev) {
+        return searchQuery;
+      }
+      return prev;
+    });
   }, [searchQuery]);
 
   useEffect(() => {
@@ -228,11 +228,11 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
     }
   };
 
-  const handleBatchDelete = () => {
+  const handleBatchDelete = useCallback(() => {
     if (selectedNotes.size === 0) return;
     setShowDeleteConfirm(true);
     setIsClosingDialog(false);
-  };
+  }, [selectedNotes.size]);
 
   const closeDeleteDialog = () => {
     setIsClosingDialog(true);
@@ -300,7 +300,9 @@ export default function NoteList({ onSelectNote, onOpenSidebar }: NoteListProps)
 
       if (isDeleteKey && isBatchMode && selectedNotes.size > 0) {
         e.preventDefault();
-        handleBatchDelete();
+        // 直接调用删除逻辑，避免依赖handleBatchDelete
+        setShowDeleteConfirm(true);
+        setIsClosingDialog(false);
       }
     };
 

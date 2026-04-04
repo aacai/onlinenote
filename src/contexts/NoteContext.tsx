@@ -142,10 +142,10 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
       }
       // 更新成功且拿到服务端数据，不需要立即同步
       // scheduleSync(3000);
-    } catch (error) {
+    } catch {
       console.log('Note updated locally, will sync when online');
     }
-  }, [currentNote, refreshNotes]);
+  }, [currentNote]);
 
   const deleteNote = useCallback(async (id: string) => {
     // 添加到待同步队列
@@ -161,7 +161,7 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
       await api.deleteNote(id);
       // 删除成功，乐观更新已处理本地状态，无需重新获取全部
       scheduleSync(3000);
-    } catch (error) {
+    } catch {
       console.log('Note deleted locally, will sync when online');
     }
   }, [currentNote]);
