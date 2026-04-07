@@ -4,6 +4,12 @@ import { supabaseDb } from '@/lib/supabase';
 import { redisDb } from '@/lib/redis';
 import { getMongoDb } from '@/lib/mongodb';
 
+export const dynamic = 'force-static';
+
+export async function generateStaticParams() {
+  return [{ id: '_static_placeholder' }];
+}
+
 const getStorageMode = (request: Request): 'local' | 'supabase' | 'redis' | 'mongodb' => {
   const mode = request.headers.get('x-storage-mode');
   if (mode === 'supabase') return 'supabase';

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { fileStorage } from '@/lib/fileStorage';
 
+export const dynamic = 'force-static';
+
 export async function POST(request: Request) {
   try {
     fileStorage.init();

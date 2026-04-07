@@ -4,6 +4,8 @@ import { supabaseDb } from '@/lib/supabase';
 import { redisDb } from '@/lib/redis';
 import { getMongoDb } from '@/lib/mongodb';
 
+export const dynamic = 'force-static';
+
 const formatError = (error: unknown): string => {
   if (error instanceof Error) return error.message;
   if (error && typeof error === 'object') {

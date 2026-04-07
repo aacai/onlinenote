@@ -197,7 +197,11 @@ const nextConfig: NextConfig = {
 cd /Applications/OnlineWebNote.app/Contents/Resources/app
 ../nodejs/bin/node node_modules/next/dist/bin/next start -p 3000
 ```
+# 移除隔离属性（信任应用）
+xattr -cr src-tauri/target/release/bundle/macos/OnlineWebNote.app
 
+# 或者直接打开 DMG 安装后的应用
+xattr -cr /Applications/OnlineWebNote.app
 ### 端口被占用
 
 查找并结束占用 3000 端口的进程：

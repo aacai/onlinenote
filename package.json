@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "next dev -H 0.0.0.0",
     "build": "next build",
+    "build:static": "next build && npm run build:clean-placeholders",
+    "build:clean-placeholders": "rm -rf dist/api",
+    "preview:static": "npx serve dist -l 3000",
     "start": "next start",
     "lint": "eslint",
     "tauri": "tauri",

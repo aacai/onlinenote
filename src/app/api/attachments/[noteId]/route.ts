@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { fileStorage } from '@/lib/fileStorage';
 
+export const dynamic = 'force-static';
+
+export async function generateStaticParams() {
+  return [{ noteId: '_static_placeholder' }];
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ noteId: string }> }

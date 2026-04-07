@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
 
+export const dynamic = 'force-static';
+
 export async function POST(request: Request) {
   try {
     const { uri } = await request.json();
