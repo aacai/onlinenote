@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { fileStorage } from '@/lib/fileStorage';
 
 export const dynamic = 'force-static';
 
@@ -11,13 +10,29 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ noteId: string }> }
 ) {
+  const { noteId } = await params;
+  
+  if (noteId === '_static_placeholder') {
+    return NextResponse.json([]);
+  }
+  
+  if (typeof window !== 'undefined' || typeof process !== 'undefined') {
+    const isStatic = process.env.NEXT_OUTPUT === 'export';
+    if (isStatic) {
+      return NextResponse.json(
+        { error: 'This feature requires Tauri environment or server mode' },
+        { status: 501 }
+      );
+    }
+  }
+  
   try {
+    const { fileStorage } = await import('@/lib/fileStorage');
     fileStorage.init();
-    const { noteId } = await params;
     
     const attachments = fileStorage.getNoteAttachments(noteId);
     
-    const attachmentList = attachments.map(filename => ({
+    const attachmentList = attachments.map((filename: string) => ({
       filename,
       url: `/api/attachments/${noteId}/${filename}`,
     }));

@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { fileStorage } from '@/lib/fileStorage';
 
 export const dynamic = 'force-static';
 
@@ -11,9 +10,25 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ noteId: string; filename: string }> }
 ) {
+  const { noteId, filename } = await params;
+  
+  if (noteId === '_static_placeholder' || filename === '_static_placeholder') {
+    return NextResponse.json({ error: 'Static placeholder' }, { status: 404 });
+  }
+  
+  if (typeof process !== 'undefined') {
+    const isStatic = process.env.NEXT_OUTPUT === 'export';
+    if (isStatic) {
+      return NextResponse.json(
+        { error: 'This feature requires Tauri environment or server mode' },
+        { status: 501 }
+      );
+    }
+  }
+  
   try {
+    const { fileStorage } = await import('@/lib/fileStorage');
     fileStorage.init();
-    const { noteId, filename } = await params;
     
     const fileBuffer = fileStorage.getAttachment(noteId, filename);
     
@@ -38,16 +53,26 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ noteId: string; filename: string }> }
 ) {
+  const { noteId, filename } = await params;
+  
+  if (typeof process !== 'undefined') {
+    const isStatic = process.env.NEXT_OUTPUT === 'export';
+    if (isStatic) {
+      return NextResponse.json(
+        { error: 'This feature requires Tauri environment or server mode' },
+        { status: 501 }
+      );
+    }
+  }
+  
   try {
     const body = await request.json();
     const { action } = body;
 
     if (action === 'delete') {
+      const { fileStorage } = await import('@/lib/fileStorage');
       fileStorage.init();
-      const { noteId, filename } = await params;
-
       fileStorage.deleteAttachment(noteId, filename);
-
       return NextResponse.json({ success: true });
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

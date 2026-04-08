@@ -14,6 +14,7 @@ export interface StorageConfig {
   redisUrl: string;
   redisToken: string;
   mongodbUri: string;
+  mongodbApiKey: string;
 }
 
 const STORAGE_CONFIG_KEY = 'markdown_notes_storage_config';
@@ -26,6 +27,7 @@ const defaultConfig: StorageConfig = {
   redisUrl: 'https://vocal-spaniel-74996.upstash.io',
   redisToken: 'gQAAAAAAAST0AAIncDE2ZGRiYTUxZTAyNWE0ZWZiODdjMGUxZWRmOThjMGUzYXAxNzQ5OTY',
   mongodbUri: 'mongodb+srv://caicaidarenya_db_user:4CpyKH7Y3SyYWQdm@onlinewebnote.2lbnlst.mongodb.net/markdown_notes?retryWrites=true&w=majority&appName=OnlineWebNote',
+  mongodbApiKey: 'YOUR_MONGODB_DATA_API_KEY',
 };
 
 // 获取存储配置

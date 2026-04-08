@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import { fileStorage } from '@/lib/fileStorage';
 import { supabaseDb } from '@/lib/supabase';
 import { redisDb } from '@/lib/redis';
-import { getMongoDb } from '@/lib/mongodb';
+import { mongoDbApi } from '@/lib/mongodb-api';
 
 export const dynamic = 'force-static';
 
@@ -37,10 +36,10 @@ export async function GET(request: Request) {
       const notes = await redisDb.getNotes();
       return NextResponse.json(notes);
     } else if (mode === 'mongodb') {
-      const db = await getMongoDb();
-      const notes = await db.collection('notes').find({}).sort({ updatedAt: -1 }).toArray();
+      const notes = await mongoDbApi.getNotes();
       return NextResponse.json(notes);
     } else {
+      const { fileStorage } = await import('@/lib/fileStorage');
       fileStorage.init();
       const notes = fileStorage.getNotes();
       return NextResponse.json(notes);
@@ -75,10 +74,10 @@ export async function POST(request: Request) {
       const created = await redisDb.createNote(newNote);
       return NextResponse.json(created);
     } else if (mode === 'mongodb') {
-      const db = await getMongoDb();
-      const result = await db.collection('notes').insertOne(newNote);
-      return NextResponse.json({ ...newNote, _id: result.insertedId });
+      const created = await mongoDbApi.createNote(newNote);
+      return NextResponse.json(created);
     } else {
+      const { fileStorage } = await import('@/lib/fileStorage');
       fileStorage.init();
       const notes = fileStorage.getNotes();
       notes.unshift(newNote);

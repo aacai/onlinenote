@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import { fileStorage } from '@/lib/fileStorage';
 import { supabaseDb } from '@/lib/supabase';
 import { redisDb } from '@/lib/redis';
-import { getMongoDb } from '@/lib/mongodb';
+import { mongoDbApi } from '@/lib/mongodb-api';
 
 export const dynamic = 'force-static';
 
@@ -25,10 +24,10 @@ export async function GET(request: Request) {
       const categories = await redisDb.getCategories();
       return NextResponse.json(categories);
     } else if (mode === 'mongodb') {
-      const db = await getMongoDb();
-      const categories = await db.collection('categories').find({}).sort({ name: 1 }).toArray();
+      const categories = await mongoDbApi.getCategories();
       return NextResponse.json(categories);
     } else {
+      const { fileStorage } = await import('@/lib/fileStorage');
       fileStorage.init();
       const categories = fileStorage.getCategories();
       return NextResponse.json(categories);
@@ -59,10 +58,10 @@ export async function POST(request: Request) {
       const created = await redisDb.createCategory(newCategory);
       return NextResponse.json(created);
     } else if (mode === 'mongodb') {
-      const db = await getMongoDb();
-      const result = await db.collection('categories').insertOne(newCategory);
-      return NextResponse.json({ ...newCategory, _id: result.insertedId });
+      const created = await mongoDbApi.createCategory(newCategory);
+      return NextResponse.json(created);
     } else {
+      const { fileStorage } = await import('@/lib/fileStorage');
       fileStorage.init();
       const categories = fileStorage.getCategories();
       categories.push(newCategory);

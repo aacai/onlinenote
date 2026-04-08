@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { fileStorage } from '@/lib/fileStorage';
 
 export const dynamic = 'force-static';
 
 export async function POST(request: Request) {
   try {
+    const { fileStorage } = await import('@/lib/fileStorage');
     fileStorage.init();
     const formData = await request.formData();
     const file = formData.get('file') as File;

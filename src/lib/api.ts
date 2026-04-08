@@ -1,27 +1,33 @@
 import { Note, Category } from '@/types/note';
 import { getStorageMode } from './storageConfig';
+import { supabaseDb } from './supabase';
+import { redisDb } from './redis';
+import { mongoDbApi } from './mongodb-api';
 
-// 判断是否在 Tauri 环境
 const isTauri = () => {
   if (typeof window === 'undefined') return false;
   return '__TAURI_INTERNALS__' in window;
 };
 
-// 调用 Tauri 命令
 const invokeTauri = async <T>(cmd: string, args?: Record<string, unknown>): Promise<T> => {
   const { invoke } = await import('@tauri-apps/api/core');
   return invoke<T>(cmd, args);
 };
 
-// 获取 API 基础 URL
-const getApiBase = (): string => {
-  if (typeof window === 'undefined') {
-    return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const getStorageClient = () => {
+  const mode = getStorageMode();
+  switch (mode) {
+    case 'supabase':
+      return supabaseDb;
+    case 'redis':
+      return redisDb;
+    case 'mongodb':
+      return mongoDbApi;
+    default:
+      return null;
   }
-  return '/api';
 };
 
-// 获取请求头
 const getHeaders = (contentType = true): HeadersInit => {
   const headers: HeadersInit = {};
   if (contentType) {
@@ -37,21 +43,12 @@ export const api = {
       return invokeTauri<Note[]>('get_notes');
     }
     
-    try {
-      const response = await fetch(`${getApiBase()}/notes`, {
-        headers: getHeaders(false),
-      });
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        throw new Error(`Failed to fetch notes: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-      return response.json();
-    } catch (error) {
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        console.error('Network error fetching notes - server may be unreachable');
-      }
-      throw error;
+    const client = getStorageClient();
+    if (client) {
+      return client.getNotes();
     }
+    
+    throw new Error('Local storage mode requires Tauri environment');
   },
 
   createNote: async (note: Partial<Note>): Promise<Note> => {
@@ -74,13 +71,27 @@ export const api = {
       return invokeTauri<Note>('create_note', { note: tauriNote });
     }
     
-    const response = await fetch(`${getApiBase()}/notes`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify(note),
-    });
-    if (!response.ok) throw new Error('Failed to create note');
-    return response.json();
+    const client = getStorageClient();
+    if (client) {
+      const newNote: Note = {
+        id: note.id || crypto.randomUUID(),
+        title: note.title || '',
+        content: note.content || '',
+        category: note.category || '',
+        tags: note.tags || [],
+        user: note.user || '',
+        createdAt: note.createdAt || Date.now(),
+        updatedAt: note.updatedAt || Date.now(),
+        category_id: note.category_id || null,
+        created_at: note.created_at || new Date().toISOString(),
+        updated_at: note.updated_at || new Date().toISOString(),
+        is_favorite: note.is_favorite || false,
+        is_archived: note.is_archived || false,
+      };
+      return client.createNote(newNote);
+    }
+    
+    throw new Error('Local storage mode requires Tauri environment');
   },
 
   updateNote: async (id: string, updates: Partial<Note>): Promise<Note> => {
@@ -88,13 +99,12 @@ export const api = {
       return invokeTauri<Note>('update_note', { id, updates });
     }
     
-    const response = await fetch(`${getApiBase()}/notes/${id}`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ action: 'update', ...updates }),
-    });
-    if (!response.ok) throw new Error('Failed to update note');
-    return response.json();
+    const client = getStorageClient();
+    if (client) {
+      return client.updateNote(id, updates);
+    }
+    
+    throw new Error('Local storage mode requires Tauri environment');
   },
 
   deleteNote: async (id: string): Promise<void> => {
@@ -102,12 +112,12 @@ export const api = {
       return invokeTauri<void>('delete_note', { id });
     }
     
-    const response = await fetch(`${getApiBase()}/notes/${id}`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ action: 'delete' }),
-    });
-    if (!response.ok) throw new Error('Failed to delete note');
+    const client = getStorageClient();
+    if (client) {
+      return client.deleteNote(id);
+    }
+    
+    throw new Error('Local storage mode requires Tauri environment');
   },
 
   getCategories: async (): Promise<Category[]> => {
@@ -115,21 +125,12 @@ export const api = {
       return invokeTauri<Category[]>('get_categories');
     }
     
-    try {
-      const response = await fetch(`${getApiBase()}/categories`, {
-        headers: getHeaders(false),
-      });
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        throw new Error(`Failed to fetch categories: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-      return response.json();
-    } catch (error) {
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        console.error('Network error fetching categories - server may be unreachable');
-      }
-      throw error;
+    const client = getStorageClient();
+    if (client) {
+      return client.getCategories();
     }
+    
+    throw new Error('Local storage mode requires Tauri environment');
   },
 
   addCategory: async (name: string, color: string): Promise<Category> => {
@@ -137,13 +138,17 @@ export const api = {
       return invokeTauri<Category>('create_category', { name, color });
     }
     
-    const response = await fetch(`${getApiBase()}/categories`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ name, color }),
-    });
-    if (!response.ok) throw new Error('Failed to create category');
-    return response.json();
+    const client = getStorageClient();
+    if (client) {
+      const newCategory: Category = {
+        id: crypto.randomUUID(),
+        name,
+        color,
+      };
+      return client.createCategory(newCategory);
+    }
+    
+    throw new Error('Local storage mode requires Tauri environment');
   },
 
   deleteCategory: async (id: string): Promise<void> => {
@@ -151,12 +156,12 @@ export const api = {
       return invokeTauri<void>('delete_category', { id });
     }
     
-    const response = await fetch(`${getApiBase()}/categories/${id}`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ action: 'delete' }),
-    });
-    if (!response.ok) throw new Error('Failed to delete category');
+    const client = getStorageClient();
+    if (client) {
+      return client.deleteCategory(id);
+    }
+    
+    throw new Error('Local storage mode requires Tauri environment');
   },
 
   uploadFile: async (noteId: string, file: File): Promise<{
@@ -167,18 +172,11 @@ export const api = {
     size: number;
     type: string;
   }> => {
-    // Tauri 模式下暂不支持文件上传
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('noteId', noteId);
+    if (isTauri()) {
+      throw new Error('File upload not supported in Tauri mode yet');
+    }
     
-    const response = await fetch(`${getApiBase()}/upload`, {
-      method: 'POST',
-      headers: { 'x-storage-mode': getStorageMode() },
-      body: formData,
-    });
-    if (!response.ok) throw new Error('Failed to upload file');
-    return response.json();
+    throw new Error('File upload requires server environment. Use Supabase Storage for file attachments in static export mode.');
   },
 
   getAttachments: async (noteId: string): Promise<Array<{
@@ -189,11 +187,7 @@ export const api = {
       return invokeTauri<Array<{ filename: string; url: string }>>('get_attachments', { noteId });
     }
     
-    const response = await fetch(`${getApiBase()}/attachments/${noteId}`, {
-      headers: getHeaders(false),
-    });
-    if (!response.ok) throw new Error('Failed to fetch attachments');
-    return response.json();
+    return [];
   },
 
   deleteAttachment: async (noteId: string, filename: string): Promise<void> => {
@@ -201,11 +195,6 @@ export const api = {
       return invokeTauri<void>('delete_attachment', { noteId, filename });
     }
     
-    const response = await fetch(`${getApiBase()}/attachments/${noteId}/${filename}`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ action: 'delete' }),
-    });
-    if (!response.ok) throw new Error('Failed to delete attachment');
+    throw new Error('File operations require Tauri environment');
   },
 };

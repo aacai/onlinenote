@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import { fileStorage } from '@/lib/fileStorage';
 import { supabaseDb } from '@/lib/supabase';
 import { redisDb } from '@/lib/redis';
-import { getMongoDb } from '@/lib/mongodb';
+import { mongoDbApi } from '@/lib/mongodb-api';
 
 export const dynamic = 'force-static';
 
@@ -23,14 +22,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const mode = getStorageMode(request);
+  const { id } = await params;
+  const body = await request.json();
+  const { action } = body;
 
   try {
-    const { id } = await params;
-    const body = await request.json();
-    const { action } = body;
-
     if (action === 'delete') {
-      // 删除分类
       if (mode === 'supabase') {
         await supabaseDb.deleteCategory(id);
         return NextResponse.json({ success: true });
@@ -38,10 +35,10 @@ export async function POST(
         await redisDb.deleteCategory(id);
         return NextResponse.json({ success: true });
       } else if (mode === 'mongodb') {
-        const db = await getMongoDb();
-        await db.collection('categories').deleteOne({ id });
+        await mongoDbApi.deleteCategory(id);
         return NextResponse.json({ success: true });
       } else {
+        const { fileStorage } = await import('@/lib/fileStorage');
         fileStorage.init();
         const categories = fileStorage.getCategories();
         const filteredCategories = categories.filter((c: { id: string }) => c.id !== id);
