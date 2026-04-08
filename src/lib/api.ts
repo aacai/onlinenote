@@ -176,7 +176,17 @@ export const api = {
       throw new Error('File upload not supported in Tauri mode yet');
     }
     
-    throw new Error('File upload requires server environment. Use Supabase Storage for file attachments in static export mode.');
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('noteId', noteId);
+    
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'x-storage-mode': getStorageMode() },
+      body: formData,
+    });
+    if (!response.ok) throw new Error('Failed to upload file');
+    return response.json();
   },
 
   getAttachments: async (noteId: string): Promise<Array<{
