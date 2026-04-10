@@ -2,10 +2,13 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-static';
 
+const getStorageMode = (): string => {
+  return 'local';
+};
+
 export async function POST(request: Request) {
   try {
-    const { fileStorage } = await import('@/lib/fileStorage');
-    fileStorage.init();
+    const storageMode = request.headers.get('x-storage-mode') || getStorageMode();
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const noteId = formData.get('noteId') as string;
@@ -21,7 +24,18 @@ export async function POST(request: Request) {
     const originalName = file.name;
     const filename = `${timestamp}-${originalName}`;
     
-    const url = fileStorage.saveAttachment(noteId, filename, buffer);
+    let url: string;
+    
+    if (storageMode === 'supabase') {
+      const { supabaseFileStorage } = await import('@/lib/supabaseFileStorage');
+      const { getStorageConfig } = await import('@/lib/storageConfig');
+      const config = getStorageConfig();
+      url = await supabaseFileStorage.saveAttachment(noteId, filename, buffer, !!config.supabaseServiceKey);
+    } else {
+      const { fileStorage } = await import('@/lib/fileStorage');
+      fileStorage.init();
+      url = fileStorage.saveAttachment(noteId, filename, buffer);
+    }
     
     return NextResponse.json({
       success: true,

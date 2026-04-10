@@ -53,6 +53,7 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
   const [hasChanges, setHasChanges] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [isAttachmentsExpanded, setIsAttachmentsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -320,10 +321,14 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
     if (!files || files.length === 0 || !currentNote) return;
 
     setIsUploading(true);
+    setUploadProgress(0);
     setUploadSuccess(false);
     try {
       for (const file of Array.from(files)) {
-        const result = await uploadFile(file);
+        setUploadProgress(0);
+        const result = await uploadFile(file, (progress) => {
+          setUploadProgress(progress);
+        });
         
         const isImage = file.type.startsWith('image/');
         if (isImage) {
@@ -341,6 +346,7 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
       alert('文件上传失败');
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -513,7 +519,7 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
               className="flex items-center gap-1 px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 transition-colors"
             >
               <Upload size={12} />
-              {isUploading ? '上传中...' : '上传'}
+              {isUploading ? `${uploadProgress}%` : '上传'}
             </button>
             {isAttachmentsExpanded ? (
               <ChevronDown size={16} className="text-gray-500" />
@@ -526,6 +532,20 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
         {isAttachmentsExpanded && (
           <div className="border-t border-gray-200 dark:border-gray-700">
             <div className="p-3">
+              {isUploading && (
+                <div className="mb-3">
+                  <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                    <span>上传中...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div
+                      className="bg-green-500 h-2 rounded-full transition-all duration-200"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
               <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                 💡 图片会自动插入到编辑器中
               </div>

@@ -1,7 +1,7 @@
 // 存储配置管理
 // 支持四种模式：
 // 1. local - 全部存储在本地（localStorage + 文件系统）
-// 2. supabase - 文本存储在 Supabase 数据库，附件存储在本地
+// 2. supabase - 文本存储在 Supabase 数据库，附件存储在 Supabase Storage
 // 3. redis - 文本存储在 Upstash Redis，附件存储在本地
 // 4. mongodb - 文本存储在 MongoDB，附件存储在本地
 
@@ -11,6 +11,7 @@ export interface StorageConfig {
   mode: StorageMode;
   supabaseUrl: string;
   supabaseAnonKey: string;
+  supabaseServiceKey: string;
   redisUrl: string;
   redisToken: string;
   mongodbUri: string;
@@ -24,6 +25,7 @@ const defaultConfig: StorageConfig = {
   mode: 'local',
   supabaseUrl: 'https://pjpvhsqqbzrwdvzmfztf.supabase.co',
   supabaseAnonKey: 'sb_publishable_U6JkwLk77F5B3NMItf0E0Q_YUbiTwYe',
+  supabaseServiceKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqcHZoc3FxYnpyd2R2em1menRmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTA0OTA0NCwiZXhwIjoyMDkwNjI1MDQ0fQ.voYV7FT-w6jxUTMk1FS9inG54FELKWmAOcjF4e4Zu3s',
   redisUrl: 'https://vocal-spaniel-74996.upstash.io',
   redisToken: 'gQAAAAAAAST0AAIncDE2ZGRiYTUxZTAyNWE0ZWZiODdjMGUxZWRmOThjMGUzYXAxNzQ5OTY',
   mongodbUri: 'mongodb+srv://caicaidarenya_db_user:4CpyKH7Y3SyYWQdm@onlinewebnote.2lbnlst.mongodb.net/markdown_notes?retryWrites=true&w=majority&appName=OnlineWebNote',

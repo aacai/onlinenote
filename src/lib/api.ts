@@ -1,8 +1,5 @@
 import { Note, Category } from '@/types/note';
 import { getStorageMode } from './storageConfig';
-import { supabaseDb } from './supabase';
-import { redisDb } from './redis';
-import { mongoDbApi } from './mongodb-api';
 
 const isTauri = () => {
   if (typeof window === 'undefined') return false;
@@ -14,15 +11,21 @@ const invokeTauri = async <T>(cmd: string, args?: Record<string, unknown>): Prom
   return invoke<T>(cmd, args);
 };
 
-const getStorageClient = () => {
+const getStorageClient = async () => {
   const mode = getStorageMode();
   switch (mode) {
-    case 'supabase':
+    case 'supabase': {
+      const { supabaseDb } = await import('./supabase');
       return supabaseDb;
-    case 'redis':
+    }
+    case 'redis': {
+      const { redisDb } = await import('./redis');
       return redisDb;
-    case 'mongodb':
+    }
+    case 'mongodb': {
+      const { mongoDbApi } = await import('./mongodb-api');
       return mongoDbApi;
+    }
     default:
       return null;
   }
@@ -43,7 +46,7 @@ export const api = {
       return invokeTauri<Note[]>('get_notes');
     }
     
-    const client = getStorageClient();
+    const client = await getStorageClient();
     if (client) {
       return client.getNotes();
     }
@@ -71,7 +74,7 @@ export const api = {
       return invokeTauri<Note>('create_note', { note: tauriNote });
     }
     
-    const client = getStorageClient();
+    const client = await getStorageClient();
     if (client) {
       const newNote: Note = {
         id: note.id || crypto.randomUUID(),
@@ -99,7 +102,7 @@ export const api = {
       return invokeTauri<Note>('update_note', { id, updates });
     }
     
-    const client = getStorageClient();
+    const client = await getStorageClient();
     if (client) {
       return client.updateNote(id, updates);
     }
@@ -112,7 +115,7 @@ export const api = {
       return invokeTauri<void>('delete_note', { id });
     }
     
-    const client = getStorageClient();
+    const client = await getStorageClient();
     if (client) {
       return client.deleteNote(id);
     }
@@ -125,7 +128,7 @@ export const api = {
       return invokeTauri<Category[]>('get_categories');
     }
     
-    const client = getStorageClient();
+    const client = await getStorageClient();
     if (client) {
       return client.getCategories();
     }
@@ -138,7 +141,7 @@ export const api = {
       return invokeTauri<Category>('create_category', { name, color });
     }
     
-    const client = getStorageClient();
+    const client = await getStorageClient();
     if (client) {
       const newCategory: Category = {
         id: crypto.randomUUID(),
@@ -156,7 +159,7 @@ export const api = {
       return invokeTauri<void>('delete_category', { id });
     }
     
-    const client = getStorageClient();
+    const client = await getStorageClient();
     if (client) {
       return client.deleteCategory(id);
     }
@@ -164,7 +167,11 @@ export const api = {
     throw new Error('Local storage mode requires Tauri environment');
   },
 
-  uploadFile: async (noteId: string, file: File): Promise<{
+  uploadFile: async (
+    noteId: string, 
+    file: File, 
+    onProgress?: (progress: number) => void
+  ): Promise<{
     success: boolean;
     filename: string;
     url: string;
@@ -176,13 +183,47 @@ export const api = {
       throw new Error('File upload not supported in Tauri mode yet');
     }
     
+    const storageMode = getStorageMode();
+    
+    if (storageMode === 'supabase') {
+      const { supabaseFileStorage } = await import('./supabaseFileStorage');
+      const { getStorageConfig } = await import('./storageConfig');
+      const config = getStorageConfig();
+      
+      if (onProgress) {
+        onProgress(10);
+        await new Promise(r => setTimeout(r, 50));
+        onProgress(30);
+        await new Promise(r => setTimeout(r, 100));
+        onProgress(60);
+      }
+      
+      const result = await supabaseFileStorage.uploadFile(
+        noteId, 
+        file, 
+        onProgress,
+        !!config.supabaseServiceKey
+      );
+      
+      if (onProgress) onProgress(100);
+      
+      return {
+        success: true,
+        filename: result.filename,
+        url: result.url,
+        originalName: file.name,
+        size: file.size,
+        type: file.type,
+      };
+    }
+    
     const formData = new FormData();
     formData.append('file', file);
     formData.append('noteId', noteId);
     
     const response = await fetch('/api/upload', {
       method: 'POST',
-      headers: { 'x-storage-mode': getStorageMode() },
+      headers: { 'x-storage-mode': storageMode },
       body: formData,
     });
     if (!response.ok) throw new Error('Failed to upload file');
@@ -197,7 +238,23 @@ export const api = {
       return invokeTauri<Array<{ filename: string; url: string }>>('get_attachments', { noteId });
     }
     
-    return [];
+    const storageMode = getStorageMode();
+    if (storageMode === 'supabase') {
+      const { supabaseFileStorage } = await import('./supabaseFileStorage');
+      const { getStorageConfig } = await import('./storageConfig');
+      const config = getStorageConfig();
+      const attachments = await supabaseFileStorage.getNoteAttachments(noteId, !!config.supabaseServiceKey);
+      return attachments.map((filename: string) => ({
+        filename,
+        url: supabaseFileStorage.getAttachmentUrl(noteId, filename),
+      }));
+    }
+    
+    const response = await fetch(`/api/attachments/${noteId}`, {
+      headers: { 'x-storage-mode': getStorageMode() },
+    });
+    if (!response.ok) throw new Error('Failed to fetch attachments');
+    return response.json();
   },
 
   deleteAttachment: async (noteId: string, filename: string): Promise<void> => {
@@ -205,6 +262,20 @@ export const api = {
       return invokeTauri<void>('delete_attachment', { noteId, filename });
     }
     
-    throw new Error('File operations require Tauri environment');
+    const storageMode = getStorageMode();
+    if (storageMode === 'supabase') {
+      const { supabaseFileStorage } = await import('./supabaseFileStorage');
+      const { getStorageConfig } = await import('./storageConfig');
+      const config = getStorageConfig();
+      await supabaseFileStorage.deleteAttachment(noteId, filename, !!config.supabaseServiceKey);
+      return;
+    }
+    
+    const response = await fetch(`/api/attachments/${noteId}/${filename}`, {
+      method: 'POST',
+      headers: { 'x-storage-mode': getStorageMode() },
+      body: JSON.stringify({ action: 'delete' }),
+    });
+    if (!response.ok) throw new Error('Failed to delete attachment');
   },
 };

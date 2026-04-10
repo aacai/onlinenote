@@ -21,7 +21,7 @@ interface NoteContextType {
   setSelectedCategory: (categoryId: string | null) => void;
   addCategory: (name: string, color: string) => Promise<Category>;
   deleteCategory: (id: string) => Promise<void>;
-  uploadFile: (file: File) => Promise<{ url: string; filename: string }>;
+  uploadFile: (file: File, onProgress?: (progress: number) => void) => Promise<{ url: string; filename: string }>;
   refreshNotes: () => Promise<void>;
 }
 
@@ -186,11 +186,11 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
     await refreshNotes();
   }, [refreshNotes]);
 
-  const uploadFile = useCallback(async (file: File): Promise<{ url: string; filename: string }> => {
+  const uploadFile = useCallback(async (file: File, onProgress?: (progress: number) => void): Promise<{ url: string; filename: string }> => {
     if (!currentNote) {
       throw new Error('No note selected');
     }
-    const result = await api.uploadFile(currentNote.id, file);
+    const result = await api.uploadFile(currentNote.id, file, onProgress);
     return { url: result.url, filename: result.filename };
   }, [currentNote]);
 

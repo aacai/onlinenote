@@ -26,16 +26,29 @@ export async function GET(
     }
   }
   
+  const storageMode = request.headers.get('x-storage-mode') || 'local';
+  
   try {
-    const { fileStorage } = await import('@/lib/fileStorage');
-    fileStorage.init();
+    let attachmentList;
     
-    const attachments = fileStorage.getNoteAttachments(noteId);
-    
-    const attachmentList = attachments.map((filename: string) => ({
-      filename,
-      url: `/api/attachments/${noteId}/${filename}`,
-    }));
+    if (storageMode === 'supabase') {
+      const { supabaseFileStorage } = await import('@/lib/supabaseFileStorage');
+      const { getStorageConfig } = await import('@/lib/storageConfig');
+      const config = getStorageConfig();
+      const attachments = await supabaseFileStorage.getNoteAttachments(noteId, !!config.supabaseServiceKey);
+      attachmentList = attachments.map((filename: string) => ({
+        filename,
+        url: supabaseFileStorage.getAttachmentUrl(noteId, filename),
+      }));
+    } else {
+      const { fileStorage } = await import('@/lib/fileStorage');
+      fileStorage.init();
+      const attachments = fileStorage.getNoteAttachments(noteId);
+      attachmentList = attachments.map((filename: string) => ({
+        filename,
+        url: `/api/attachments/${noteId}/${filename}`,
+      }));
+    }
     
     return NextResponse.json(attachmentList);
   } catch (_error) {

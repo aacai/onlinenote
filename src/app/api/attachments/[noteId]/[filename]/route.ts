@@ -26,17 +26,28 @@ export async function GET(
     }
   }
   
+  const storageMode = request.headers.get('x-storage-mode') || 'local';
+  
   try {
-    const { fileStorage } = await import('@/lib/fileStorage');
-    fileStorage.init();
+    let fileBuffer: Buffer | null;
+    let contentType: string;
     
-    const fileBuffer = fileStorage.getAttachment(noteId, filename);
+    if (storageMode === 'supabase') {
+      const { supabaseFileStorage } = await import('@/lib/supabaseFileStorage');
+      const { getStorageConfig } = await import('@/lib/storageConfig');
+      const config = getStorageConfig();
+      fileBuffer = await supabaseFileStorage.getAttachment(noteId, filename, !!config.supabaseServiceKey);
+      contentType = getContentType(filename);
+    } else {
+      const { fileStorage } = await import('@/lib/fileStorage');
+      fileStorage.init();
+      fileBuffer = fileStorage.getAttachment(noteId, filename);
+      contentType = getContentType(filename);
+    }
     
     if (!fileBuffer) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
-    
-    const contentType = getContentType(filename);
     
     return new NextResponse(fileBuffer, {
       headers: {
@@ -70,9 +81,18 @@ export async function POST(
     const { action } = body;
 
     if (action === 'delete') {
-      const { fileStorage } = await import('@/lib/fileStorage');
-      fileStorage.init();
-      fileStorage.deleteAttachment(noteId, filename);
+      const storageMode = request.headers.get('x-storage-mode') || 'local';
+      
+      if (storageMode === 'supabase') {
+        const { supabaseFileStorage } = await import('@/lib/supabaseFileStorage');
+        const { getStorageConfig } = await import('@/lib/storageConfig');
+        const config = getStorageConfig();
+        await supabaseFileStorage.deleteAttachment(noteId, filename, !!config.supabaseServiceKey);
+      } else {
+        const { fileStorage } = await import('@/lib/fileStorage');
+        fileStorage.init();
+        fileStorage.deleteAttachment(noteId, filename);
+      }
       return NextResponse.json({ success: true });
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
