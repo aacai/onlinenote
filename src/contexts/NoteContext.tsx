@@ -113,6 +113,11 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
         alert('创建失败：' + errorMessage);
         throw error;
       }
+      // 其他错误（如 Supabase RLS 错误、权限错误等）也提示用户
+      if (errorMessage.includes('row-level') || errorMessage.includes('security') || errorMessage.includes('permission') || errorMessage.includes('403') || errorMessage.includes('401')) {
+        alert('创建失败：' + errorMessage + '\n\n请检查 Supabase 的 RLS 策略设置。');
+        throw error;
+      }
       // 网络错误，走离线逻辑
       console.log('Note created locally, will sync when online');
       setNotes(prev => deduplicateNotes([newNote, ...prev]));
@@ -123,18 +128,18 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
 
   const updateNote = useCallback(async (id: string, updates: Partial<Note>) => {
     const updateData = { ...updates, updatedAt: Date.now() };
-    
+
     // 添加到待同步队列
     addPendingChange({ type: 'update', entity: 'note', data: { id, ...updateData } });
-    
+
     // 乐观更新本地状态
     if (currentNote?.id === id) {
       setCurrentNote(prev => prev ? { ...prev, ...updateData } : null);
     }
     setNotes(prev => prev.map(n => n.id === id ? { ...n, ...updateData } : n));
-    
+
     try {
-      const updated = await api.updateNote(id, updates);
+      const updated = await api.updateNote(id, updateData);
       // 用返回的数据更新本地状态，避免重新获取全部
       setNotes(prev => prev.map(n => n.id === id ? updated : n));
       if (currentNote?.id === id) {

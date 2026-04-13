@@ -63,7 +63,6 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const prevNoteRef = useRef<{ id: string; title: string; content: string } | null>(null);
   // 使用 ref 保存最新值，避免闭包问题
   const titleRef = useRef(title);
   const contentRef = useRef(content);
@@ -76,33 +75,7 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
     return `${title}:${content.length}:${category}`;
   };
 
-  // 监听笔记切换，检查并删除空笔记
-  useEffect(() => {
-    const checkAndDeleteEmptyNote = async () => {
-      const prevNote = prevNoteRef.current;
-      if (prevNote) {
-        // 检查上一个笔记是否为空（标题是默认的"新笔记"且内容为空）
-        // 使用保存的 title 和 content，而不是从 currentNote 引用获取
-        const isEmptyNote = prevNote.title === '新笔记' && !prevNote.content.trim();
-        
-        if (isEmptyNote && prevNote.id !== currentNote?.id) {
-          try {
-            await deleteNote(prevNote.id);
-          } catch (error) {
-            console.error('Failed to delete empty note:', error);
-          }
-        }
-      }
-      // 保存当前笔记的状态（用于下次切换时检查）
-      prevNoteRef.current = currentNote ? {
-        id: currentNote.id,
-        title: title,
-        content: content
-      } : null;
-    };
-    
-    checkAndDeleteEmptyNote();
-  }, [currentNote, deleteNote, title, content]);
+
 
   useEffect(() => {
     if (currentNote) {
@@ -282,14 +255,17 @@ export default function NoteEditor({ onClose, isFullscreen = false, onToggleFull
 
   const confirmDelete = async () => {
     if (!currentNote) return;
-    
+
+    // 先保存当前笔记ID，避免闭包问题
+    const noteIdToDelete = currentNote.id;
+
     // 先播放关闭动画
     setIsClosingDialog(true);
-    
+
     // 等待动画完成后再删除
     setTimeout(async () => {
       try {
-        await deleteNote(currentNote.id);
+        await deleteNote(noteIdToDelete);
         setShowDeleteDialog(false);
         setIsClosingDialog(false);
       } catch (error) {

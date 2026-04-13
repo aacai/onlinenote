@@ -124,8 +124,8 @@ export const supabaseDb = {
       addConnectionLog('error', '获取笔记失败', error.message);
       throw new Error(error.message);
     }
-    
-    addConnectionLog('success', `获取到 ${data?.length || 0} 条笔记`);
+
+    addConnectionLog('success', `获取到 ${data?.length || 0} 条笔记`, `第一条: ${data && data.length > 0 ? JSON.stringify(data[0]).slice(0, 100) : '无'}`);
     return data || [];
   },
 
@@ -144,8 +144,8 @@ export const supabaseDb = {
       throw new Error(error.message);
     }
 
-    addConnectionLog('success', '笔记创建成功');
-    return data;
+    addConnectionLog('success', '笔记创建成功', `返回数据: ${JSON.stringify(data)}`);
+    return data || note;
   },
 
   // 更新笔记
