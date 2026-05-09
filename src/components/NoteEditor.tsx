@@ -1,24 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import dynamic from 'next/dynamic';
 import { useNotes } from '@/contexts/NoteContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Save, Trash2, X, Upload, Download, Paperclip, Check, Maximize2, Minimize2, ChevronUp, ChevronDown, Database, HardDrive, Server, Leaf } from 'lucide-react';
 import { getStorageMode, StorageMode } from '@/lib/storageConfig';
 import { api } from '@/lib/api';
-
-const LexicalEditor = dynamic(
-  () => import('./LexicalEditor').then((mod) => mod.default),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="h-full w-full flex items-center justify-center bg-white dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
-      </div>
-    ),
-  }
-);
+import LexicalEditor from './LexicalEditor';
 
 interface NoteEditorProps {
   onClose?: () => void;

@@ -56,6 +56,67 @@ export async function POST(request: Request) {
 
   try {
     const noteData = await request.json();
+    const action = noteData.action as string | undefined;
+
+    if (action === 'delete' && noteData.id) {
+      const id = noteData.id as string;
+      if (mode === 'supabase') {
+        await supabaseDb.deleteNote(id);
+        fileStorage.deleteNoteAttachments(id);
+        return NextResponse.json({ success: true });
+      }
+      if (mode === 'redis') {
+        await redisDb.deleteNote(id);
+        fileStorage.deleteNoteAttachments(id);
+        return NextResponse.json({ success: true });
+      }
+      if (mode === 'mongodb') {
+        const db = await getMongoDb();
+        await db.collection('notes').deleteOne({ id });
+        fileStorage.deleteNoteAttachments(id);
+        return NextResponse.json({ success: true });
+      }
+      fileStorage.init();
+      const notes = fileStorage.getNotes();
+      fileStorage.saveNotes(notes.filter((n: { id: string }) => n.id !== id));
+      fileStorage.deleteNoteAttachments(id);
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === 'update' && noteData.id) {
+      const id = noteData.id as string;
+      const { action: _action, id: _noteId, ...data } = noteData;
+      if (mode === 'supabase') {
+        const updated = await supabaseDb.updateNote(id, data);
+        return NextResponse.json(updated);
+      }
+      if (mode === 'redis') {
+        const updated = await redisDb.updateNote(id, data);
+        return NextResponse.json(updated);
+      }
+      if (mode === 'mongodb') {
+        const db = await getMongoDb();
+        const result = await db.collection('notes').findOneAndUpdate(
+          { id },
+          { $set: { ...data, updatedAt: Date.now() } },
+          { returnDocument: 'after' }
+        );
+        return NextResponse.json(result);
+      }
+      fileStorage.init();
+      const notes = fileStorage.getNotes();
+      const index = notes.findIndex((n: { id: string }) => n.id === id);
+      if (index === -1) {
+        return NextResponse.json({ error: 'Note not found' }, { status: 404 });
+      }
+      notes[index] = {
+        ...notes[index],
+        ...data,
+        updatedAt: Date.now(),
+      };
+      fileStorage.saveNotes(notes);
+      return NextResponse.json(notes[index]);
+    }
 
     const newNote = {
       id: noteData.id || Date.now().toString(),

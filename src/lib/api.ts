@@ -1,11 +1,40 @@
 import { Note, Category } from '@/types/note';
 import { getStorageMode } from './storageConfig';
+import { supabaseDb } from './supabase';
+import { redisDb } from './redis';
 
 // 判断是否在 Tauri 环境
 const isTauri = () => {
   if (typeof window === 'undefined') return false;
   return '__TAURI_INTERNALS__' in window;
 };
+
+/**
+ * output: 'export' 时动态 Route 受限；Supabase/Redis 可在浏览器直连 SDK。
+ * 本地模式（local）一律走 Next API，由服务端 fileStorage 读写 data/*.json，与用户期望一致。
+ */
+const shouldUseDirectClientDb = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  if (isTauri()) return false;
+  const mode = getStorageMode();
+  return mode === 'supabase' || mode === 'redis';
+};
+
+const buildNewNote = (note: Partial<Note>): Note => ({
+  id: note.id || crypto.randomUUID(),
+  title: note.title || '无标题笔记',
+  content: note.content || '',
+  category: note.category || '4',
+  tags: note.tags || [],
+  user: note.user || 'anonymous',
+  createdAt: note.createdAt || Date.now(),
+  updatedAt: Date.now(),
+  category_id: note.category_id ?? null,
+  created_at: note.created_at || new Date().toISOString(),
+  updated_at: note.updated_at || new Date().toISOString(),
+  is_favorite: note.is_favorite ?? false,
+  is_archived: note.is_archived ?? false,
+});
 
 // 调用 Tauri 命令
 const invokeTauri = async <T>(cmd: string, args?: Record<string, unknown>): Promise<T> => {
@@ -35,6 +64,14 @@ export const api = {
   getNotes: async (): Promise<Note[]> => {
     if (isTauri()) {
       return invokeTauri<Note[]>('get_notes');
+    }
+
+    if (shouldUseDirectClientDb()) {
+      const mode = getStorageMode();
+      if (mode === 'supabase') {
+        return supabaseDb.getNotes();
+      }
+      return redisDb.getNotes();
     }
     
     try {
@@ -73,6 +110,14 @@ export const api = {
       };
       return invokeTauri<Note>('create_note', { note: tauriNote });
     }
+
+    if (shouldUseDirectClientDb()) {
+      const newNote = buildNewNote(note);
+      if (getStorageMode() === 'supabase') {
+        return supabaseDb.createNote(newNote);
+      }
+      return redisDb.createNote(newNote);
+    }
     
     const response = await fetch(`${getApiBase()}/notes`, {
       method: 'POST',
@@ -87,11 +132,18 @@ export const api = {
     if (isTauri()) {
       return invokeTauri<Note>('update_note', { id, updates });
     }
+
+    if (shouldUseDirectClientDb()) {
+      if (getStorageMode() === 'supabase') {
+        return supabaseDb.updateNote(id, updates);
+      }
+      return redisDb.updateNote(id, updates);
+    }
     
-    const response = await fetch(`${getApiBase()}/notes/${id}`, {
+    const response = await fetch(`${getApiBase()}/notes`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ action: 'update', ...updates }),
+      body: JSON.stringify({ action: 'update', id, ...updates }),
     });
     if (!response.ok) throw new Error('Failed to update note');
     return response.json();
@@ -101,11 +153,20 @@ export const api = {
     if (isTauri()) {
       return invokeTauri<void>('delete_note', { id });
     }
+
+    if (shouldUseDirectClientDb()) {
+      if (getStorageMode() === 'supabase') {
+        await supabaseDb.deleteNote(id);
+        return;
+      }
+      await redisDb.deleteNote(id);
+      return;
+    }
     
-    const response = await fetch(`${getApiBase()}/notes/${id}`, {
+    const response = await fetch(`${getApiBase()}/notes`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ action: 'delete' }),
+      body: JSON.stringify({ action: 'delete', id }),
     });
     if (!response.ok) throw new Error('Failed to delete note');
   },
@@ -113,6 +174,13 @@ export const api = {
   getCategories: async (): Promise<Category[]> => {
     if (isTauri()) {
       return invokeTauri<Category[]>('get_categories');
+    }
+
+    if (shouldUseDirectClientDb()) {
+      if (getStorageMode() === 'supabase') {
+        return supabaseDb.getCategories();
+      }
+      return redisDb.getCategories();
     }
     
     try {
@@ -136,6 +204,18 @@ export const api = {
     if (isTauri()) {
       return invokeTauri<Category>('create_category', { name, color });
     }
+
+    if (shouldUseDirectClientDb()) {
+      const newCategory: Category = {
+        id: Date.now().toString(),
+        name,
+        color: color || '#3b82f6',
+      };
+      if (getStorageMode() === 'supabase') {
+        return supabaseDb.createCategory(newCategory);
+      }
+      return redisDb.createCategory(newCategory);
+    }
     
     const response = await fetch(`${getApiBase()}/categories`, {
       method: 'POST',
@@ -150,11 +230,20 @@ export const api = {
     if (isTauri()) {
       return invokeTauri<void>('delete_category', { id });
     }
+
+    if (shouldUseDirectClientDb()) {
+      if (getStorageMode() === 'supabase') {
+        await supabaseDb.deleteCategory(id);
+        return;
+      }
+      await redisDb.deleteCategory(id);
+      return;
+    }
     
-    const response = await fetch(`${getApiBase()}/categories/${id}`, {
+    const response = await fetch(`${getApiBase()}/categories`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ action: 'delete' }),
+      body: JSON.stringify({ action: 'delete', id }),
     });
     if (!response.ok) throw new Error('Failed to delete category');
   },
@@ -188,6 +277,10 @@ export const api = {
     if (isTauri()) {
       return invokeTauri<Array<{ filename: string; url: string }>>('get_attachments', { noteId });
     }
+
+    if (shouldUseDirectClientDb()) {
+      return [];
+    }
     
     const response = await fetch(`${getApiBase()}/attachments/${noteId}`, {
       headers: getHeaders(false),
@@ -199,6 +292,10 @@ export const api = {
   deleteAttachment: async (noteId: string, filename: string): Promise<void> => {
     if (isTauri()) {
       return invokeTauri<void>('delete_attachment', { noteId, filename });
+    }
+
+    if (shouldUseDirectClientDb()) {
+      return;
     }
     
     const response = await fetch(`${getApiBase()}/attachments/${noteId}/${filename}`, {

@@ -46,6 +46,27 @@ export async function POST(request: Request) {
   try {
     const categoryData = await request.json();
 
+    if (categoryData.action === 'delete' && categoryData.id) {
+      const id = categoryData.id as string;
+      if (mode === 'supabase') {
+        await supabaseDb.deleteCategory(id);
+        return NextResponse.json({ success: true });
+      }
+      if (mode === 'redis') {
+        await redisDb.deleteCategory(id);
+        return NextResponse.json({ success: true });
+      }
+      if (mode === 'mongodb') {
+        const db = await getMongoDb();
+        await db.collection('categories').deleteOne({ id });
+        return NextResponse.json({ success: true });
+      }
+      fileStorage.init();
+      const categories = fileStorage.getCategories();
+      fileStorage.saveCategories(categories.filter((c: { id: string }) => c.id !== id));
+      return NextResponse.json({ success: true });
+    }
+
     const newCategory = {
       id: categoryData.id || Date.now().toString(),
       name: categoryData.name,

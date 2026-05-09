@@ -376,7 +376,7 @@ function ToolbarPlugin() {
   };
 
   return (
-    <div className="flex items-center gap-0.5 p-1.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-t-lg flex-wrap">
+    <div className="relative z-10 flex flex-shrink-0 flex-wrap items-center gap-0.5 rounded-t-lg border-b border-gray-200 bg-gray-50 p-1.5 dark:border-gray-700 dark:bg-gray-800">
       <ToolbarButton onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)} title="撤销 (Ctrl+Z)">
         <Undo size={16} />
       </ToolbarButton>
@@ -862,19 +862,20 @@ export default function LexicalEditor({
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
-      <div className="h-full flex flex-col relative">
+      {/* relative 只放在正文滚动区外一层，占位符才相对于正文区定位，否则会叠在 Toolbar 上 */}
+      <div className="flex h-full min-h-0 flex-col">
         <ToolbarPlugin />
-        <div className="flex-1 overflow-y-auto">
+        <div className="relative z-0 min-h-0 flex-1 overflow-y-auto">
           <RichTextPlugin
             contentEditable={
               <ContentEditable
-                className={`h-full min-h-full p-4 outline-none ${
+                className={`relative z-[1] min-h-full p-4 outline-none ${
                   isDark ? 'text-gray-100' : 'text-gray-900'
                 }`}
               />
             }
             placeholder={
-              <div className="absolute top-16 left-4 text-gray-400 pointer-events-none select-none">
+              <div className="pointer-events-none absolute left-4 top-4 z-0 select-none text-gray-400">
                 开始输入...
               </div>
             }
